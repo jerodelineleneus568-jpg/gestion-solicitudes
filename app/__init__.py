@@ -2,6 +2,7 @@ from flask import Flask
 from flask_wtf.csrf import CSRFProtect
 from app.config import Config
 from app.models.solicitud_model import SolicitudModel
+SolicitudModel.init_db()
 
 csrf = CSRFProtect()
 

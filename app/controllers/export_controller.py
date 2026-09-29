@@ -1,14 +1,17 @@
 import io
 import pandas as pd
-from flask import Blueprint, send_file, abort
+from flask import Blueprint, send_file, abort, session, redirect, url_for, flash
 from app.models.solicitud_model import SolicitudModel
 
 export_bp = Blueprint('export', __name__)
 
 @export_bp.route('/exportar/excel')
 def exportar_excel():
+    if not session.get('user_id') or session.get('rol') != 'admin':
+        flash('Debe ser administrador para descargar reportes.', 'danger')
+        return redirect(url_for('solicitud.login'))
+
     filas = SolicitudModel.obtener_todas()
-    
     if not filas:
         abort(404, description="No hay registros disponibles para exportar.")
 
@@ -20,9 +23,8 @@ def exportar_excel():
             "Nombre Completo": f["nombre_completo"],
             "Correo": f["correo"],
             "Centros": f["centros"],
-            "Solicitado Por": f["gestionado_por"],
             "Estado": f["estado"],
-            "Gestionado Por (Admin)": f["gestionado_por_admin"] or "N/A",
+            "Gestionado Por (Admin)": f["gestionado_por_admin"] or "Pendiente",
             "Fecha Solicitud": f["fecha_creacion"],
             "Fecha Gestión": f["fecha_gestion"] or "Pendiente"
         }

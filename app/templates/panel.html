@@ -6,53 +6,46 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-<div class="container py-4">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-2">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-primary fw-bold mb-0">Panel de Solicitudes</h2>
         <div>
-            <a href="{{ url_for('export.exportar_excel') }}" class="btn btn-success me-2">Descargar Excel</a>
-            <a href="{{ url_for('solicitud.registrar') }}" class="btn btn-outline-primary">+ Nueva Solicitud</a>
+            <h3 class="text-primary fw-bold mb-0">Panel de Gestión de Solicitudes</h3>
+            <span class="text-muted small">Conectado como: <strong>{{ admin_nombre }}</strong> (Rol: Administrador)</span>
+        </div>
+        <div>
+            <a href="{{ url_for('export.exportar_excel') }}" class="btn btn-success me-2">📥 Descargar Excel</a>
+            <a href="{{ url_for('solicitud.logout') }}" class="btn btn-outline-danger">Cerrar Sesión</a>
         </div>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="card shadow-sm">
+    <div class="card shadow-sm border-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-primary">
+                <thead class="table-light">
                     <tr>
                         <th>ID</th>
                         <th>Tipo</th>
                         <th>Nombre y RUT</th>
                         <th>Correo</th>
-                        <th>Centros</th>
-                        <th>Solicitado Por</th>
+                        <th>Centros Solicitados</th>
                         <th>Estado</th>
-                        <th>Acción</th>
+                        <th>Acción Administrativa</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in solicitudes %}
                     <tr>
                         <td><strong>#{{ s.id }}</strong></td>
-                        <td>{{ s.tipo_solicitud }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ s.tipo_solicitud }}</span></td>
                         <td>
-                            <div>{{ s.nombre_completo }}</div>
+                            <div class="fw-semibold">{{ s.nombre_completo }}</div>
                             <small class="text-muted">{{ s.rut }}</small>
                         </td>
                         <td>{{ s.correo }}</td>
-                        <td><small>{{ s.centros }}</small></td>
-                        <td>{{ s.gestionado_por }}</td>
+                        <td><small class="text-secondary">{{ s.centros }}</small></td>
                         <td>
                             {% if s.estado == 'Pendiente' %}
                                 <span class="badge bg-warning text-dark">Pendiente</span>
@@ -65,19 +58,20 @@
                         </td>
                         <td>
                             {% if s.estado == 'Pendiente' %}
-                            <form method="POST" action="{{ url_for('solicitud.gestionar', solicitud_id=s.id) }}" class="d-flex gap-1">
+                            <form method="POST" action="{{ url_for('solicitud.gestionar', solicitud_id=s.id) }}" class="m-0">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="text" name="nombre_admin" class="form-control form-control-sm" placeholder="Tu nombre" required style="max-width: 110px;">
-                                <button type="submit" class="btn btn-sm btn-primary text-nowrap">Gestionar</button>
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    Marcar como Gestionada
+                                </button>
                             </form>
                             {% else %}
-                                <span class="text-muted small">✓ Completado</span>
+                                <span class="text-muted small">✓ Solicitud Procesada</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">No hay solicitudes registradas.</td>
+                        <td colspan="7" class="text-center py-4 text-muted">No existen solicitudes registradas.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -85,5 +79,6 @@
         </div>
     </div>
 </div>
+{% endblock %}
 </body>
 </html>

@@ -1,6 +1,6 @@
 import re
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, SelectMultipleField, SubmitField
+from wtforms import StringField, SelectField, PasswordField, SelectMultipleField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, ValidationError
 from wtforms.widgets import ListWidget, CheckboxInput
 
@@ -85,7 +85,6 @@ class FormularioSolicitud(FlaskForm):
         ]
     )
     
-    # Se eliminó la palabra "Institucional"
     correo = StringField(
         'Correo',
         validators=[
@@ -94,16 +93,33 @@ class FormularioSolicitud(FlaskForm):
         ]
     )
     
+    # Lista ampliada de centros
     centros = SelectMultipleField(
         'Centro(s) al que pertenece',
         choices=[
             ('Centro Médico Central', 'Centro Médico Central'),
-            ('Centro Norte', 'Centro Norte'),
-            ('Centro Sur', 'Centro Sur'),
-            ('Centro Oriente', 'Centro Oriente'),
-            ('Centro Poniente', 'Centro Poniente')
+            ('Centro Médico Norte', 'Centro Médico Norte'),
+            ('Centro Médico Sur', 'Centro Médico Sur'),
+            ('Centro Médico Oriente', 'Centro Médico Oriente'),
+            ('Centro Médico Poniente', 'Centro Médico Poniente'),
+            ('Hospital Clínico Principal', 'Hospital Clínico Principal'),
+            ('Centro de Diagnóstico y Tratamiento', 'Centro de Diagnóstico y Tratamiento'),
+            ('Unidad de Atención Primaria', 'Unidad de Atención Primaria'),
+            ('Centro Comunitario de Salud Familiar (CECOSF)', 'Centro Comunitario de Salud Familiar (CECOSF)'),
+            ('Centro de Salud Familiar (CESFAM) Central', 'Centro de Salud Familiar (CESFAM) Central'),
+            ('Centro de Salud Familiar (CESFAM) Cordillera', 'Centro de Salud Familiar (CESFAM) Cordillera'),
+            ('Servicio de Urgencia y Emergencias', 'Servicio de Urgencia y Emergencias'),
+            ('Laboratorio Clínico Central', 'Laboratorio Clínico Central'),
+            ('Unidad de Imagenología y Rayos', 'Unidad de Imagenología y Rayos'),
+            ('Dirección y Administración Central', 'Dirección y Administración Central')
         ],
         validators=[DataRequired(message="Debe seleccionar al menos un centro.")]
     )
     
     submit = SubmitField('Enviar Solicitud')
+
+
+class FormularioLogin(FlaskForm):
+    usuario = StringField('Usuario Administrador', validators=[DataRequired()])
+    password = PasswordField('Contraseña', validators=[DataRequired()])
+    submit = SubmitField('Ingresar al Panel')

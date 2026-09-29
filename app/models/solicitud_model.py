@@ -1,4 +1,5 @@
 import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.config import Config
 
 class SolicitudModel:
@@ -12,6 +13,8 @@ class SolicitudModel:
     def init_db(cls):
         with cls.get_connection() as conn:
             cursor = conn.cursor()
+            
+            # Tabla de solicitudes
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS solicitudes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,7 +31,28 @@ class SolicitudModel:
                     fecha_gestion TIMESTAMP DEFAULT NULL
                 )
             ''')
-            # Migración automática si la tabla ya existía sin las nuevas columnas
+            
+            # Tabla de usuarios y roles
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    nombre TEXT NOT NULL,
+                    rol TEXT NOT NULL DEFAULT 'admin'
+                )
+            ''')
+            
+            # Crear usuario administrador por defecto si no existe (admin / Admin2026!)
+            cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
+            if not cursor.fetchone():
+                admin_hash = generate_password_hash("Admin2026!")
+                cursor.execute(
+                    "INSERT INTO usuarios (username, password_hash, nombre, rol) VALUES (?, ?, ?, ?)",
+                    ('admin', admin_hash, 'Administrador del Sistema', 'admin')
+                )
+            
+            # Migraciones automáticas de columnas si faltan
             cursor.execute("PRAGMA table_info(solicitudes)")
             columnas = [col[1] for col in cursor.fetchall()]
             if 'estado' not in columnas:
@@ -37,6 +61,7 @@ class SolicitudModel:
                 cursor.execute("ALTER TABLE solicitudes ADD COLUMN gestionado_por_admin TEXT DEFAULT NULL")
             if 'fecha_gestion' not in columnas:
                 cursor.execute("ALTER TABLE solicitudes ADD COLUMN fecha_gestion TIMESTAMP DEFAULT NULL")
+            
             conn.commit()
 
     @classmethod
@@ -77,3 +102,13 @@ class SolicitudModel:
             cursor = conn.cursor()
             cursor.execute(query, (nombre_admin, solicitud_id))
             conn.commit()
+
+    @classmethod
+    def autenticar_admin(cls, username, password):
+        with cls.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, username, password_hash, nombre, rol FROM usuarios WHERE username = ?", (username,))
+            user = cursor.fetchone()
+            if user and check_password_hash(user['password_hash'], password):
+                return user
+            return None

@@ -1,0 +1,14 @@
+# Entorno virtual y dependencias
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Base de datos y archivos generados
+*.db
+*.sqlite3
+*.xlsx
+
+# Configuración del entorno
+.env
+instance/

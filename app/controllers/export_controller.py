@@ -20,9 +20,11 @@ def exportar_excel():
             "Nombre Completo": f["nombre_completo"],
             "Correo": f["correo"],
             "Centros": f["centros"],
-            "Gestionado Por": f["gestionado_por"],
-            "Fecha Registro": f["fecha_creacion"],
-            "IP Origen": f["ip_origen"]
+            "Solicitado Por": f["gestionado_por"],
+            "Estado": f["estado"],
+            "Gestionado Por (Admin)": f["gestionado_por_admin"] or "N/A",
+            "Fecha Solicitud": f["fecha_creacion"],
+            "Fecha Gestión": f["fecha_gestion"] or "Pendiente"
         }
         for f in filas
     ]

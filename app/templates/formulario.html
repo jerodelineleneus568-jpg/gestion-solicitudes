@@ -1,78 +1,144 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-7">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-primary text-white py-3">
-                <h5 class="card-title mb-0">Solicitud de Creación o Reactivación</h5>
+<div class="card shadow-sm border-0 rounded-3">
+    <div class="card-header bg-primary text-white py-3">
+        <h5 class="card-title mb-0 fw-bold">Solicitud de Creación o Reactivación</h5>
+    </div>
+    <div class="card-body p-4">
+        <form method="POST" novalidate id="solicitudForm">
+            {{ form.hidden_tag() }}
+
+            <!-- Tipo de Solicitud -->
+            <div class="mb-3">
+                {{ form.tipo_solicitud.label(class="form-label fw-semibold") }}
+                {{ form.tipo_solicitud(class="form-select") }}
+                {% for error in form.tipo_solicitud.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
             </div>
-            <div class="card-body p-4">
-                <form method="POST" novalidate>
-                    {{ form.csrf_token }}
 
-                    <div class="mb-3">
-                        {{ form.tipo_solicitud.label(class="form-label fw-bold") }}
-                        {{ form.tipo_solicitud(class="form-select" + (" is-invalid" if form.tipo_solicitud.errors else "")) }}
-                        {% for error in form.tipo_solicitud.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+            <!-- Nombre Completo -->
+            <div class="mb-3">
+                {{ form.nombre_completo.label(class="form-label fw-semibold") }}
+                {{ form.nombre_completo(class="form-control", placeholder="Ej: Juan Pérez") }}
+                {% for error in form.nombre_completo.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
+                {% endfor %}
+            </div>
 
-                    <div class="mb-3">
-                        {{ form.nombre_completo.label(class="form-label fw-bold") }}
-                        {{ form.nombre_completo(class="form-control" + (" is-invalid" if form.nombre_completo.errors else ""), placeholder="Ej. Juan Pérez González") }}
-                        {% for error in form.nombre_completo.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
+            <!-- RUT y Correo en 2 columnas -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    {{ form.rut.label(class="form-label fw-semibold") }}
+                    {{ form.rut(class="form-control", placeholder="Ej: 12345678-9") }}
+                    {% for error in form.rut.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-6">
+                    {{ form.correo.label(class="form-label fw-semibold") }}
+                    {{ form.correo(class="form-control", placeholder="correo@ejemplo.com") }}
+                    {% for error in form.correo.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+<!-- Centro(s) al que pertenece (Dropdown Desplegable) -->
+<div class="mb-4 position-relative">
+    <label class="form-label fw-semibold">Centro(s) al que pertenece</label>
+    
+    <!-- Botón desplegable principal -->
+    <div class="input-group">
+        <button class="form-control text-start bg-white d-flex justify-content-between align-items-center dropdown-toggle" 
+                type="button" 
+                id="btnDropdownCentros" 
+                data-bs-toggle="dropdown" 
+                data-bs-auto-close="outside" 
+                aria-expanded="false">
+            <span id="textoSeleccionCentros" class="text-truncate">Ver y seleccionar centros disponibles...</span>
+            <span id="badgeCentros" class="badge bg-secondary ms-2">0 seleccionados</span>
+        </button>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            {{ form.rut.label(class="form-label fw-bold") }}
-                            {{ form.rut(class="form-control" + (" is-invalid" if form.rut.errors else ""), placeholder="12345678-9") }}
-                            {% for error in form.rut.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            {{ form.correo.label(class="form-label fw-bold") }}
-                            {{ form.correo(class="form-control" + (" is-invalid" if form.correo.errors else ""), placeholder="ejemplo@institucion.cl") }}
-                            {% for error in form.correo.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
-                            {% endfor %}
-                        </div>
-                    </div>
+        <!-- Menú que se despliega al apretar el botón -->
+        <div class="dropdown-menu p-2 shadow w-100" aria-labelledby="btnDropdownCentros" style="max-height: 280px; overflow-y: auto;">
+            <!-- Buscador interno -->
+            <div class="input-group input-group-sm mb-2">
+                <span class="input-group-text bg-light">🔍</span>
+                <input type="text" id="filtroCentros" class="form-control" placeholder="Escribe para buscar un centro...">
+            </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold d-block">{{ form.centros.label }}</label>
-                        <div class="border rounded p-3 bg-white {% if form.centros.errors %}border-danger{% endif %}">
-                            {% for subfield in form.centros %}
-                                <div class="form-check">
-                                    {{ subfield(class="form-check-input") }}
-                                    {{ subfield.label(class="form-check-label") }}
-                                </div>
-                            {% endfor %}
-                        </div>
-                        {% for error in form.centros.errors %}
-                            <div class="text-danger small mt-1">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="mb-4">
-                        {{ form.gestionado_por.label(class="form-label fw-bold") }}
-                        {{ form.gestionado_por(class="form-control" + (" is-invalid" if form.gestionado_por.errors else ""), placeholder="Nombre de jefatura o solicitante") }}
-                        {% for error in form.gestionado_por.errors %}
-                            <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
-                    </div>
-
-                    <div class="d-grid">
-                        {{ form.submit(class="btn btn-primary btn-lg") }}
-                    </div>
-                </form>
+            <!-- Lista de opciones sin duplicación de texto -->
+            <div id="listaCentros">
+                {% for subfield in form.centros %}
+                <div class="form-check py-1 px-3 rounded hover-bg centro-item d-flex align-items-center">
+                    <input class="form-check-input me-2 mt-0" 
+                           type="checkbox" 
+                           name="{{ form.centros.name }}" 
+                           value="{{ subfield.data }}" 
+                           id="{{ subfield.id }}"
+                           {% if subfield.checked %}checked{% endif %}>
+                    <label class="form-check-label w-100 py-1" for="{{ subfield.id }}" style="cursor: pointer;">
+                        {{ subfield.label.text }}
+                    </label>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
+
+    {% for error in form.centros.errors %}
+        <div class="text-danger small mt-1">{{ error }}</div>
+    {% endfor %}
 </div>
+
+            <!-- Botón de Envío -->
+            <div class="d-grid mt-4">
+                {{ form.submit(class="btn btn-primary btn-lg fw-bold") }}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const checkboxes = document.querySelectorAll('#listaCentros input[type="checkbox"]');
+    const badge = document.getElementById('badgeCentros');
+    const textoBoton = document.getElementById('textoSeleccionCentros');
+    const filtro = document.getElementById('filtroCentros');
+
+    function actualizarSeleccion() {
+        const seleccionados = Array.from(checkboxes).filter(cb => cb.checked);
+        const total = seleccionados.length;
+        
+        badge.textContent = `${total} seleccionados`;
+        if (total > 0) {
+            badge.className = "badge bg-success ms-2";
+            // Mostrar los nombres de los centros seleccionados en el botón
+            const nombres = seleccionados.map(cb => cb.nextElementSibling.textContent.trim());
+            textoBoton.textContent = nombres.join(', ');
+            textoBoton.classList.remove('text-muted');
+        } else {
+            badge.className = "badge bg-secondary ms-2";
+            textoBoton.textContent = "Ver y seleccionar centros disponibles...";
+        }
+    }
+
+    checkboxes.forEach(cb => cb.addEventListener('change', actualizarSeleccion));
+    actualizarSeleccion();
+
+    // Filtro de búsqueda dentro del desplegable
+    filtro.addEventListener('keyup', function(e) {
+        e.stopPropagation();
+        const query = this.value.toLowerCase();
+        document.querySelectorAll('.centro-item').forEach(item => {
+            const texto = item.textContent.toLowerCase();
+            item.style.display = texto.includes(query) ? 'flex' : 'none';
+        });
+    });
+
+    // Evitar que al hacer clic en el buscador se cierre el dropdown
+    filtro.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+</script>
 {% endblock %}

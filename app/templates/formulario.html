@@ -6,9 +6,24 @@
         <h5 class="card-title mb-0 fw-bold">Solicitud de Creación o Reactivación</h5>
     </div>
     <div class="card-body p-4">
+
+        <!-- Mensajes Flash de notificación y advertencia -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         <form method="POST" novalidate id="solicitudForm">
             {{ form.hidden_tag() }}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            
+            <!-- Resto de los campos del formulario ... -->
 
             <!-- Fila: Tipo de Solicitud y Sistema -->
             <div class="row g-3 mb-3">

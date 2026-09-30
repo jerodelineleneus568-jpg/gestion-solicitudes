@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-primary text-white py-3">
+                <h5 class="mb-0 fw-bold">🔍 Consultar Estado de Solicitud</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-muted">Ingresa tu RUT para consultar el avance de tus solicitudes de cuenta en Rayen o Iris.</p>
+                <form method="POST" class="d-flex gap-2 mb-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="text" name="rut" class="form-control" placeholder="Ej: 12345678-9" value="{{ rut_buscado }}" required>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Consultar</button>
+                </form>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                {% if solicitudes is not none and solicitudes %}
+                <div class="table-responsive mt-4">
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Sistema</th>
+                                <th>Tipo</th>
+                                <th>Fecha Solicitud</th>
+                                <th>Estado Actual</th>
+                                <th>Detalle Gestión</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in solicitudes %}
+                            <tr>
+                                <td>
+                                    <span class="badge {{ 'bg-info text-dark' if s.sistema == 'Iris' else 'bg-primary' }}">
+                                        {{ s.sistema }}
+                                    </span>
+                                </td>
+                                <td>{{ s.tipo_solicitud }}</td>
+                                <td><small>{{ s.fecha_creacion }}</small></td>
+                                <td>
+                                    {% if s.estado == 'Gestionada' %}
+                                        <span class="badge bg-success fs-6">✓ Gestionada</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark fs-6">⏳ Pendiente</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if s.estado == 'Gestionada' %}
+                                        <div class="text-success small fw-semibold">Procesada por: {{ s.gestionado_por_admin }}</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Fecha: {{ s.fecha_gestion }}</div>
+                                    {% else %}
+                                        <span class="text-muted small">En espera de gestión por administración</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer bg-white border-0 text-center pb-3">
+                <a href="{{ url_for('solicitud.registrar') }}" class="text-decoration-none">← Volver al formulario de solicitud</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

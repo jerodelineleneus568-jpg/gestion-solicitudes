@@ -20,6 +20,7 @@ def registrar():
     form = FormularioSolicitud()
     if form.validate_on_submit():
         tipo = form.tipo_solicitud.data
+        sistema = form.sistema.data
         nombre = form.nombre_completo.data.strip()
         rut = form.rut.data.strip()
         correo = form.correo.data.strip().lower()
@@ -28,6 +29,7 @@ def registrar():
 
         SolicitudModel.crear_solicitud(
             tipo_solicitud=tipo,
+            sistema=sistema,
             nombre_completo=nombre,
             rut=rut,
             correo=correo,

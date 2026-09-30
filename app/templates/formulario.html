@@ -8,14 +8,24 @@
     <div class="card-body p-4">
         <form method="POST" novalidate id="solicitudForm">
             {{ form.hidden_tag() }}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 
-            <!-- Tipo de Solicitud -->
-            <div class="mb-3">
-                {{ form.tipo_solicitud.label(class="form-label fw-semibold") }}
-                {{ form.tipo_solicitud(class="form-select") }}
-                {% for error in form.tipo_solicitud.errors %}
-                    <div class="text-danger small mt-1">{{ error }}</div>
-                {% endfor %}
+            <!-- Fila: Tipo de Solicitud y Sistema -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    {{ form.tipo_solicitud.label(class="form-label fw-semibold") }}
+                    {{ form.tipo_solicitud(class="form-select") }}
+                    {% for error in form.tipo_solicitud.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-6">
+                    {{ form.sistema.label(class="form-label fw-semibold") }}
+                    {{ form.sistema(class="form-select") }}
+                    {% for error in form.sistema.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                </div>
             </div>
 
             <!-- Nombre Completo -->
@@ -27,7 +37,7 @@
                 {% endfor %}
             </div>
 
-            <!-- RUT y Correo en 2 columnas -->
+            <!-- RUT y Correo -->
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     {{ form.rut.label(class="form-label fw-semibold") }}
@@ -44,53 +54,50 @@
                     {% endfor %}
                 </div>
             </div>
-<!-- Centro(s) al que pertenece (Dropdown Desplegable) -->
-<div class="mb-4 position-relative">
-    <label class="form-label fw-semibold">Centro(s) al que pertenece</label>
-    
-    <!-- Botón desplegable principal -->
-    <div class="input-group">
-        <button class="form-control text-start bg-white d-flex justify-content-between align-items-center dropdown-toggle" 
-                type="button" 
-                id="btnDropdownCentros" 
-                data-bs-toggle="dropdown" 
-                data-bs-auto-close="outside" 
-                aria-expanded="false">
-            <span id="textoSeleccionCentros" class="text-truncate">seleccionar centro</span>
-            <span id="badgeCentros" class="badge bg-secondary ms-2">0 seleccionados</span>
-        </button>
 
-        <!-- Menú que se despliega al apretar el botón -->
-        <div class="dropdown-menu p-2 shadow w-100" aria-labelledby="btnDropdownCentros" style="max-height: 280px; overflow-y: auto;">
-            <!-- Buscador interno -->
-            <div class="input-group input-group-sm mb-2">
-                <span class="input-group-text bg-light">🔍</span>
-                <input type="text" id="filtroCentros" class="form-control" placeholder="Escribe para buscar un centro...">
-            </div>
+            <!-- Centro(s) al que pertenece (Dropdown Desplegable) -->
+            <div class="mb-4 position-relative">
+                <label class="form-label fw-semibold">Centro(s) al que pertenece</label>
+                
+                <div class="input-group">
+                    <button class="form-control text-start bg-white d-flex justify-content-between align-items-center dropdown-toggle" 
+                            type="button" 
+                            id="btnDropdownCentros" 
+                            data-bs-toggle="dropdown" 
+                            data-bs-auto-close="outside" 
+                            aria-expanded="false">
+                        <span id="textoSeleccionCentros" class="text-truncate">Ver y seleccionar centros disponibles...</span>
+                        <span id="badgeCentros" class="badge bg-secondary ms-2">0 seleccionados</span>
+                    </button>
 
-            <!-- Lista de opciones sin duplicación de texto -->
-            <div id="listaCentros">
-                {% for subfield in form.centros %}
-                <div class="form-check py-1 px-3 rounded hover-bg centro-item d-flex align-items-center">
-                    <input class="form-check-input me-2 mt-0" 
-                           type="checkbox" 
-                           name="{{ form.centros.name }}" 
-                           value="{{ subfield.data }}" 
-                           id="{{ subfield.id }}"
-                           {% if subfield.checked %}checked{% endif %}>
-                    <label class="form-check-label w-100 py-1" for="{{ subfield.id }}" style="cursor: pointer;">
-                        {{ subfield.label.text }}
-                    </label>
+                    <div class="dropdown-menu p-2 shadow w-100" aria-labelledby="btnDropdownCentros" style="max-height: 280px; overflow-y: auto;">
+                        <div class="input-group input-group-sm mb-2">
+                            <span class="input-group-text bg-light">🔍</span>
+                            <input type="text" id="filtroCentros" class="form-control" placeholder="Escribe para buscar un centro...">
+                        </div>
+
+                        <div id="listaCentros">
+                            {% for subfield in form.centros %}
+                            <div class="form-check py-1 px-3 rounded hover-bg centro-item d-flex align-items-center">
+                                <input class="form-check-input me-2 mt-0" 
+                                       type="checkbox" 
+                                       name="{{ form.centros.name }}" 
+                                       value="{{ subfield.data }}" 
+                                       id="{{ subfield.id }}"
+                                       {% if subfield.checked %}checked{% endif %}>
+                                <label class="form-check-label w-100 py-1" for="{{ subfield.id }}" style="cursor: pointer;">
+                                    {{ subfield.label.text }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
+
+                {% for error in form.centros.errors %}
+                    <div class="text-danger small mt-1">{{ error }}</div>
                 {% endfor %}
             </div>
-        </div>
-    </div>
-
-    {% for error in form.centros.errors %}
-        <div class="text-danger small mt-1">{{ error }}</div>
-    {% endfor %}
-</div>
 
             <!-- Botón de Envío -->
             <div class="d-grid mt-4">
@@ -113,20 +120,17 @@
         badge.textContent = `${total} seleccionados`;
         if (total > 0) {
             badge.className = "badge bg-success ms-2";
-            // Mostrar los nombres de los centros seleccionados en el botón
             const nombres = seleccionados.map(cb => cb.nextElementSibling.textContent.trim());
             textoBoton.textContent = nombres.join(', ');
-            textoBoton.classList.remove('text-muted');
         } else {
             badge.className = "badge bg-secondary ms-2";
-            textoBoton.textContent = "seleccionar centros ";
+            textoBoton.textContent = "Ver y seleccionar centros disponibles...";
         }
     }
 
     checkboxes.forEach(cb => cb.addEventListener('change', actualizarSeleccion));
     actualizarSeleccion();
 
-    // Filtro de búsqueda dentro del desplegable
     filtro.addEventListener('keyup', function(e) {
         e.stopPropagation();
         const query = this.value.toLowerCase();
@@ -136,7 +140,6 @@
         });
     });
 
-    // Evitar que al hacer clic en el buscador se cierre el dropdown
     filtro.addEventListener('click', function(e) {
         e.stopPropagation();
     });

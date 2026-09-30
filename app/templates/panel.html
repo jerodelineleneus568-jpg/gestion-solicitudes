@@ -25,56 +25,62 @@
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
-                    <tr>
-                        <th>ID</th>
-                        <th>Tipo</th>
-                        <th>Nombre y RUT</th>
-                        <th>Correo</th>
-                        <th>Centros Solicitados</th>
-                        <th>Estado</th>
-                        <th>Acción Administrativa</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for s in solicitudes %}
-                    <tr>
-                        <td><strong>#{{ s.id }}</strong></td>
-                        <td><span class="badge bg-light text-dark border">{{ s.tipo_solicitud }}</span></td>
-                        <td>
-                            <div class="fw-semibold">{{ s.nombre_completo }}</div>
-                            <small class="text-muted">{{ s.rut }}</small>
-                        </td>
-                        <td>{{ s.correo }}</td>
-                        <td><small class="text-secondary">{{ s.centros }}</small></td>
-                        <td>
-                            {% if s.estado == 'Pendiente' %}
-                                <span class="badge bg-warning text-dark">Pendiente</span>
-                            {% else %}
-                                <span class="badge bg-success">Gestionada</span>
-                                <div style="font-size: 0.75rem;" class="text-muted mt-1">
-                                    Por: {{ s.gestionado_por_admin }}
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if s.estado == 'Pendiente' %}
-                            <form method="POST" action="{{ url_for('solicitud.gestionar', solicitud_id=s.id) }}" class="m-0">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm btn-primary">
-                                    Marcar como Gestionada
-                                </button>
-                            </form>
-                            {% else %}
-                                <span class="text-muted small">✓ Solicitud Procesada</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">No existen solicitudes registradas.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+    <tr>
+        <th>ID</th>
+        <th>Tipo</th>
+        <th>Sistema</th>
+        <th>Nombre y RUT</th>
+        <th>Correo</th>
+        <th>Centros</th>
+        <th>Estado</th>
+        <th>Acción Administrativa</th>
+    </tr>
+</thead>
+<tbody>
+    {% for s in solicitudes %}
+    <tr>
+        <td><strong>#{{ s.id }}</strong></td>
+        <td><span class="badge bg-light text-dark border">{{ s.tipo_solicitud }}</span></td>
+        <td>
+            <span class="badge {{ 'bg-info text-dark' if s.sistema == 'Iris' else 'bg-primary' }}">
+                {{ s.sistema }}
+            </span>
+        </td>
+        <td>
+            <div class="fw-semibold">{{ s.nombre_completo }}</div>
+            <small class="text-muted">{{ s.rut }}</small>
+        </td>
+        <td>{{ s.correo }}</td>
+        <td><small class="text-secondary">{{ s.centros }}</small></td>
+        <td>
+            {% if s.estado == 'Pendiente' %}
+                <span class="badge bg-warning text-dark">Pendiente</span>
+            {% else %}
+                <span class="badge bg-success">Gestionada</span>
+                <div style="font-size: 0.75rem;" class="text-muted mt-1">
+                    Por: {{ s.gestionado_por_admin }}
+                </div>
+            {% endif %}
+        </td>
+        <td>
+            {% if s.estado == 'Pendiente' %}
+            <form method="POST" action="{{ url_for('solicitud.gestionar', solicitud_id=s.id) }}" class="m-0">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    Marcar como Gestionada
+                </button>
+            </form>
+            {% else %}
+                <span class="text-muted small">✓ Solicitud Procesada</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% else %}
+    <tr>
+        <td colspan="8" class="text-center py-4 text-muted">No existen solicitudes registradas.</td>
+    </tr>
+    {% endfor %}
+</tbody>
             </table>
         </div>
     </div>

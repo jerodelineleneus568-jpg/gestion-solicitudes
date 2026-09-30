@@ -19,6 +19,7 @@ class SolicitudModel:
                 CREATE TABLE IF NOT EXISTS solicitudes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tipo_solicitud TEXT NOT NULL,
+                    sistema TEXT NOT NULL DEFAULT 'Rayen',
                     nombre_completo TEXT NOT NULL,
                     rut TEXT NOT NULL,
                     correo TEXT NOT NULL,
@@ -32,7 +33,7 @@ class SolicitudModel:
                 )
             ''')
             
-            # Tabla de usuarios y roles
+            # Tabla de usuarios
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS usuarios (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +44,7 @@ class SolicitudModel:
                 )
             ''')
             
-            # Crear usuario administrador por defecto si no existe (admin / Admin2026!)
+            # Crear admin por defecto si no existe
             cursor.execute("SELECT id FROM usuarios WHERE username = 'admin'")
             if not cursor.fetchone():
                 admin_hash = generate_password_hash("Admin2026!")
@@ -52,9 +53,11 @@ class SolicitudModel:
                     ('admin', admin_hash, 'Administrador del Sistema', 'admin')
                 )
             
-            # Migraciones automáticas de columnas si faltan
+            # Migraciones dinámicas de columnas
             cursor.execute("PRAGMA table_info(solicitudes)")
             columnas = [col[1] for col in cursor.fetchall()]
+            if 'sistema' not in columnas:
+                cursor.execute("ALTER TABLE solicitudes ADD COLUMN sistema TEXT NOT NULL DEFAULT 'Rayen'")
             if 'estado' not in columnas:
                 cursor.execute("ALTER TABLE solicitudes ADD COLUMN estado TEXT DEFAULT 'Pendiente'")
             if 'gestionado_por_admin' not in columnas:
@@ -65,21 +68,21 @@ class SolicitudModel:
             conn.commit()
 
     @classmethod
-    def crear_solicitud(cls, tipo_solicitud, nombre_completo, rut, correo, centros, gestionado_por, ip_origen):
+    def crear_solicitud(cls, tipo_solicitud, sistema, nombre_completo, rut, correo, centros, gestionado_por, ip_origen):
         query = '''
-            INSERT INTO solicitudes (tipo_solicitud, nombre_completo, rut, correo, centros, gestionado_por, ip_origen, estado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendiente')
+            INSERT INTO solicitudes (tipo_solicitud, sistema, nombre_completo, rut, correo, centros, gestionado_por, ip_origen, estado)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente')
         '''
         with cls.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute(query, (tipo_solicitud, nombre_completo, rut, correo, centros, gestionado_por, ip_origen))
+            cursor.execute(query, (tipo_solicitud, sistema, nombre_completo, rut, correo, centros, gestionado_por, ip_origen))
             conn.commit()
             return cursor.lastrowid
 
     @classmethod
     def obtener_todas(cls):
         query = '''
-            SELECT id, tipo_solicitud, rut, nombre_completo, correo, centros, 
+            SELECT id, tipo_solicitud, sistema, rut, nombre_completo, correo, centros, 
                    gestionado_por, ip_origen, estado, gestionado_por_admin, fecha_creacion, fecha_gestion
             FROM solicitudes
             ORDER BY fecha_creacion DESC

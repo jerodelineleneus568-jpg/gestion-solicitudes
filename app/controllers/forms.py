@@ -68,6 +68,15 @@ class FormularioSolicitud(FlaskForm):
         ],
         validators=[DataRequired(message="Debe seleccionar un tipo de solicitud.")]
     )
+
+    sistema = SelectField(
+        'Sistema',
+        choices=[
+            ('Rayen', 'Rayen'),
+            ('Iris', 'Iris')
+        ],
+        validators=[DataRequired(message="Debe seleccionar si corresponde a Rayen o Iris.")]
+    )
     
     nombre_completo = StringField(
         'Nombre Completo',
@@ -93,7 +102,6 @@ class FormularioSolicitud(FlaskForm):
         ]
     )
     
-    # Lista ampliada de centros
     centros = SelectMultipleField(
         'Centro(s) al que pertenece',
         choices=[

@@ -19,6 +19,7 @@ def exportar_excel():
         {
             "ID": f["id"],
             "Tipo Solicitud": f["tipo_solicitud"],
+            "Sistema": f["sistema"],
             "RUT": f["rut"],
             "Nombre Completo": f["nombre_completo"],
             "Correo": f["correo"],
@@ -30,6 +31,7 @@ def exportar_excel():
         }
         for f in filas
     ]
+    
     df = pd.DataFrame(datos)
 
     output = io.BytesIO()

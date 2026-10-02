@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Descargar reporte de Rayen</h5>
+            </div>
+
+            <div class="card-body p-4">
+                {% for categoria, mensaje in
+                    get_flashed_messages(with_categories=true) %}
+                    <div class="alert alert-{{ categoria }}">
+                        {{ mensaje }}
+                    </div>
+                {% endfor %}
+
+                <p id="avisoRayen"
+                   class="text-muted small mt-3"
+                   hidden>
+                    Abra el escritorio remoto de Ubuntu e inicie sesión
+                    en la ventana de WebLun. Tiene 5 minutos.
+                    Después el reporte se descargará automáticamente.
+                </p>
+
+                <form method="POST"
+                      action="{{ url_for('export.exportar_excel') }}"
+                      id="formRayen">
+
+                    <input type="hidden"
+                           name="csrf_token"
+                           value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="fecha_inicio" class="form-label">
+                            Fecha de inicio
+                        </label>
+                        <input type="date"
+                               id="fecha_inicio"
+                               name="fecha_inicio"
+                               class="form-control"
+                               value="{{ fecha_inicio|default('') }}"
+                               required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="fecha_termino" class="form-label">
+                            Fecha de término
+                        </label>
+                        <input type="date"
+                               id="fecha_termino"
+                               name="fecha_termino"
+                               class="form-control"
+                               value="{{ fecha_termino|default('') }}"
+                               required>
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        Descargar Excel de activos
+                    </button>
+
+                    <a href="{{ url_for('solicitud.panel_solicitudes') }}"
+                       class="btn btn-outline-secondary">
+                        Volver al panel
+                    </a>
+
+                    <p id="avisoRayen"
+                       class="text-muted small mt-3"
+                       hidden>
+                        Procesando el reporte. Espere a que se
+                        descargue el archivo.
+                    </p>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('formRayen').addEventListener('submit', function () {
+    document.getElementById('avisoRayen').hidden = false;
+});
+</script>
+{% endblock %}

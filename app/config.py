@@ -1,18 +1,29 @@
 import os
-import secrets
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / ".env")
+
 
 class Config:
-    # SECRET_KEY fija para que no invalide las sesiones ni los tokens CSRF
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'secreto-fijo-solicitudes-2026-seguro')
-    
-    # Base de datos SQLite
-    DATABASE_PATH = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'solicitudes.db')
+    SECRET_KEY = os.environ.get("SECRET_KEY")
 
-    # Seguridad CSRF
+    DATABASE_PATH = str(BASE_DIR / "app" / "solicitudes.db")
+    UPLOAD_FOLDER = str(BASE_DIR / "uploads")
+
+    RAYEN_USUARIO = os.environ.get("RAYEN_USUARIO", "")
+    RAYEN_CONTRASENA = os.environ.get("RAYEN_CONTRASENA", "")
+    RAYEN_HEADLESS = (
+        os.environ.get("RAYEN_HEADLESS", "false").lower() == "true"
+    )
+
     WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = None  # Sin límite de tiempo estricto durante pruebas
+    WTF_CSRF_TIME_LIMIT = None
 
-    # Cookies de sesión HTTPS
+    # Tu aplicación se ejecuta mediante HTTPS en el puerto 8443.
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SAMESITE = "Lax"

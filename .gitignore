@@ -12,3 +12,6 @@ __pycache__/
 # Configuración del entorno
 .env
 instance/
+
+.env
+uploads/

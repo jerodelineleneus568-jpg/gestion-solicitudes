@@ -1,4 +1,6 @@
 from functools import wraps
+from flask import render_template, redirect, url_for, flash, session
+from app.services.rayen_service import ejecutar_scraping_reportes
 import pandas as pd
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from app.controllers.forms import FormularioSolicitud, FormularioLogin
@@ -276,3 +278,8 @@ def logout():
     session.clear()
     flash("Has cerrado sesión correctamente.", "info")
     return redirect(url_for('solicitud.login'))
+
+@solicitud_bp.route('/sincronizar-api-rayen', methods=['POST'])
+@admin_required
+def sincronizar_api_rayen():
+    return redirect(url_for('export.exportar_excel'))

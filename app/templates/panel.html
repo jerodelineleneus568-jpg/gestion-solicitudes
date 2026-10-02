@@ -17,6 +17,12 @@
             <span class="text-muted small">Conectado como: <strong>{{ admin_nombre }}</strong> (Rol: Administrador)</span>
         </div>
         <div class="d-flex gap-2">
+            <form method="POST" action="{{ url_for('solicitud.sincronizar_api_rayen') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary" onclick="return confirm('¿Iniciar sincronización directa con Rayen Salud?');">
+                    🔄 Consultar reporte Rayen
+                </button>
+            </form>
             <!-- Botón para abrir modal de importación del reporte oficial -->
             <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalImportar">
                 📤 Cargar Reporte
@@ -108,6 +114,7 @@
                                         🗑️
                                     </button>
                                 </form>
+                                
                             </div>
                         </td>
                     </tr>

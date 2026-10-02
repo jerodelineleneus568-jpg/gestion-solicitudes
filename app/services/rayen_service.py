@@ -6,34 +6,45 @@ from pathlib import Path
 from uuid import uuid4
 
 import pandas as pd
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import (
+    TimeoutError as PlaywrightTimeoutError,
+    sync_playwright,
+)
 
 
 def normalizar_texto(valor):
     texto = str(valor).strip().lower()
     texto = unicodedata.normalize("NFKD", texto)
-    texto = "".join(c for c in texto if not unicodedata.combining(c))
+    texto = "".join(
+        caracter
+        for caracter in texto
+        if not unicodedata.combining(caracter)
+    )
     return " ".join(texto.split())
 
 
 def validar_fechas(fecha_inicio, fecha_termino):
-    """Recibe fechas del formulario en formato AAAA-MM-DD."""
+    """Valida fechas AAAA-MM-DD y un rango máximo de un mes."""
     try:
         inicio = date.fromisoformat(fecha_inicio)
         termino = date.fromisoformat(fecha_termino)
     except (TypeError, ValueError):
-        raise ValueError("Ingrese ambas fechas correctamente.") from None
+        raise ValueError(
+            "Ingrese ambas fechas correctamente."
+        ) from None
 
     if inicio > termino:
         raise ValueError(
-            "La fecha de inicio no puede ser posterior a la de término."
+            "La fecha de inicio no puede ser posterior "
+            "a la fecha de término."
         )
 
-    # Límite de un mes calendario.
     mes_siguiente = inicio.month % 12 + 1
     anio_siguiente = inicio.year + (inicio.month == 12)
+
     ultimo_dia = calendar.monthrange(
-        anio_siguiente, mes_siguiente
+        anio_siguiente,
+        mes_siguiente,
     )[1]
 
     limite = date(
@@ -51,11 +62,7 @@ def validar_fechas(fecha_inicio, fecha_termino):
 
 
 def localizar_fecha(page, etiqueta, posicion):
-    """
-    Primero busca el campo por su etiqueta.
-    Si la etiqueta no está asociada al input, usa los dos
-    campos visibles del formulario de reporte.
-    """
+    """Busca por etiqueta o por los dos campos visibles del reporte."""
     campo = page.get_by_label(etiqueta, exact=True)
 
     if campo.count() == 1:
@@ -69,16 +76,14 @@ def localizar_fecha(page, etiqueta, posicion):
 
     if campos.count() != 2:
         raise RuntimeError(
-            f"No se pudo identificar '{etiqueta}'. "
-            "Es necesario revisar el selector del campo."
+            f"No se pudo identificar el campo '{etiqueta}'. "
+            "Es necesario revisar su selector."
         )
 
     return campos.nth(posicion)
 
 
 def completar_fecha(campo, fecha):
-    # Los inputs date reciben AAAA-MM-DD.
-    # En tus capturas los campos muestran DD-MM-AAAA.
     formato = (
         fecha.isoformat()
         if campo.get_attribute("type") == "date"
@@ -90,10 +95,7 @@ def completar_fecha(campo, fecha):
 
 
 def limpiar_excel(ruta_original, ruta_destino):
-    """
-    Detecta la cabecera, conserva Estado actual = Activo
-    y elimina filas iguales en todas sus columnas.
-    """
+    """Conserva activos, elimina filas iguales y agrega filtros."""
     tabla = pd.read_excel(
         ruta_original,
         header=None,
@@ -104,7 +106,10 @@ def limpiar_excel(ruta_original, ruta_destino):
     indice_cabecera = None
 
     for indice, fila in tabla.head(30).iterrows():
-        nombres = [normalizar_texto(v) for v in fila]
+        nombres = [
+            normalizar_texto(valor)
+            for valor in fila
+        ]
 
         if (
             ("run" in nombres or "rut" in nombres)
@@ -115,44 +120,47 @@ def limpiar_excel(ruta_original, ruta_destino):
 
     if indice_cabecera is None:
         raise ValueError(
-            "El Excel no contiene una cabecera con RUN/RUT "
-            "y Estado actual."
+            "No se encontró una cabecera con RUN/RUT "
+            "y Estado actual en el Excel."
         )
 
     columnas = [
-        " ".join(str(v).split())
-        for v in tabla.loc[indice_cabecera]
+        " ".join(str(valor).split())
+        for valor in tabla.loc[indice_cabecera]
     ]
 
     df = tabla.loc[indice_cabecera + 1:].copy()
     df.columns = columnas
 
     # Descarta columnas sin encabezado.
-    df = df.loc[:, [bool(c) for c in columnas]].copy()
+    df = df.loc[:, [bool(columna) for columna in columnas]].copy()
 
     if df.columns.duplicated().any():
         raise ValueError(
-            "El reporte tiene encabezados repetidos. "
-            "Revise su estructura antes de procesarlo."
+            "El reporte tiene encabezados repetidos."
         )
 
     for columna in df.columns:
         df[columna] = df[columna].str.strip()
 
     columna_estado = next(
-        c for c in df.columns
-        if normalizar_texto(c) == "estado actual"
+        columna
+        for columna in df.columns
+        if normalizar_texto(columna) == "estado actual"
     )
 
     activos = df[
         df[columna_estado].map(normalizar_texto) == "activo"
     ].copy()
 
-    cantidad_activos = len(activos)
+    # Conserva las asociaciones con establecimientos distintos.
     limpios = activos.drop_duplicates().reset_index(drop=True)
-    duplicados = cantidad_activos - len(limpios)
+    duplicados = len(activos) - len(limpios)
 
-    with pd.ExcelWriter(ruta_destino, engine="openpyxl") as writer:
+    with pd.ExcelWriter(
+        ruta_destino,
+        engine="openpyxl",
+    ) as writer:
         limpios.to_excel(
             writer,
             sheet_name="Activos",
@@ -168,6 +176,7 @@ def limpiar_excel(ruta_original, ruta_destino):
                 len(str(celda.value or ""))
                 for celda in celdas
             )
+
             hoja.column_dimensions[
                 celdas[0].column_letter
             ].width = min(max(ancho + 2, 12), 45)
@@ -178,22 +187,49 @@ def limpiar_excel(ruta_original, ruta_destino):
     }
 
 
+def diagnosticar_login(page, carpeta, nombre):
+    """
+    Guarda una captura del ingreso y muestra atributos
+    de los campos, sin imprimir sus valores.
+    """
+    print("URL recibida:", page.url)
+    print("Título recibido:", page.title())
+
+    ruta_captura = carpeta / nombre
+
+    page.screenshot(
+        path=str(ruta_captura),
+        full_page=True,
+    )
+
+    print("Captura guardada en:", ruta_captura)
+
+    campos = page.locator("input").evaluate_all("""
+        elementos => elementos.map(elemento => ({
+            type: elemento.type,
+            id: elemento.id,
+            name: elemento.name,
+            placeholder: elemento.placeholder
+        }))
+    """)
+
+    print("Campos encontrados:", campos)
+
+
 def ejecutar_scraping_reportes(
+    usuario,
+    contrasena,
     fecha_inicio,
     fecha_termino,
     carpeta_descargas,
 ):
     """
-    Abre WebLun en el escritorio de Ubuntu.
-    Espera el inicio de sesión manual y descarga el reporte.
+    Inicia sesión sin ventana, descarga el reporte
+    y genera un Excel de activos sin filas duplicadas.
     """
-    import os
-    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-
-    if not os.environ.get("DISPLAY"):
-        raise RuntimeError(
-            "La aplicación debe iniciarse desde una terminal "
-            "del escritorio remoto de Ubuntu."
+    if not usuario or not contrasena:
+        raise ValueError(
+            "Configure RAYEN_USUARIO y RAYEN_CONTRASENA en .env."
         )
 
     inicio, termino = validar_fechas(
@@ -201,13 +237,14 @@ def ejecutar_scraping_reportes(
         fecha_termino,
     )
 
-    carpeta = Path(carpeta_descargas) / uuid4().hex
+    carpeta = (
+        Path(carpeta_descargas).resolve()
+        / uuid4().hex
+    )
     carpeta.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=False,
-        )
+        browser = p.chromium.launch(headless=True)
 
         try:
             context = browser.new_context(
@@ -218,36 +255,84 @@ def ejecutar_scraping_reportes(
             page = context.new_page()
             page.set_default_timeout(30000)
 
-            page.goto(
-                "https://weblun.rayensalud.cl/login",
+            print("Abriendo WebLun...")
+
+            respuesta = page.goto(
+                "https://weblun.rayensalud.cl/",
                 wait_until="domcontentloaded",
                 timeout=60000,
             )
 
+            # Abre el ingreso desde la navegación del sitio.
+            page.get_by_text(
+                "Ingresar",
+                exact=True,
+            ).click()
+            
             print(
-                "WebLun está abierto en el escritorio remoto. "
-                "Ingrese sus credenciales y presione Iniciar. "
-                "Tiene 5 minutos."
+                "Estado HTTP:",
+                respuesta.status if respuesta else "Sin respuesta",
             )
 
-            # No escribe usuario ni contraseña.
-            # Espera el menú que aparece después de iniciar sesión.
-            try:
-                page.get_by_text(
-                    "Reportes",
-                    exact=True,
-                ).wait_for(
-                    state="visible",
-                    timeout=300000,
-                )
+            diagnosticar_login(
+                page,
+                carpeta,
+                "antes_login.png",
+            )
 
+            print("Buscando el campo Usuario...")
+
+            campo_usuario = page.get_by_placeholder(
+                "Usuario",
+                exact=True,
+            )
+
+            try:
+                campo_usuario.wait_for(
+                    state="visible",
+                    timeout=30000,
+                )
             except PlaywrightTimeoutError:
-                raise ValueError(
-                    "No se detectó el inicio de sesión en 5 minutos. "
-                    "Vuelva a intentarlo desde la aplicación."
+                # Todavía no se han escrito las credenciales.
+                try:
+                    diagnosticar_login(
+                        page,
+                        carpeta,
+                        "login_no_encontrado.png",
+                    )
+                except Exception as error:
+                    print(
+                        "No se pudo completar el diagnóstico:",
+                        type(error).__name__,
+                    )
+
+                raise RuntimeError(
+                    "No se encontró el campo Usuario. "
+                    f"Revise las capturas en: {carpeta}"
                 ) from None
 
-            print("Sesión detectada. Consultando el reporte...")
+            campo_usuario.fill(usuario)
+
+            page.get_by_placeholder(
+                "Contraseña",
+                exact=True,
+            ).fill(contrasena)
+
+            page.get_by_role(
+                "button",
+                name="Iniciar",
+                exact=True,
+            ).click()
+
+            page.get_by_text(
+                "Reportes",
+                exact=True,
+            ).wait_for(
+                state="visible",
+                timeout=60000,
+            )
+
+            print("Sesión detectada. Abriendo reporte...")
 
             page.goto(
                 "https://weblun.rayensalud.cl/reporte-activo",
@@ -314,7 +399,7 @@ def ejecutar_scraping_reportes(
             ruta_original = carpeta / f"original{extension}"
             descarga.save_as(str(ruta_original))
 
-            print("Reporte descargado correctamente.")
+            print("Excel descargado.")
 
         finally:
             browser.close()
@@ -326,10 +411,10 @@ def ejecutar_scraping_reportes(
         ruta_limpia,
     )
 
+    print("Registros activos:", resumen["registros_activos"])
     print(
-        f"Registros activos: {resumen['registros_activos']}. "
-        f"Duplicados eliminados: "
-        f"{resumen['duplicados_eliminados']}."
+        "Duplicados eliminados:",
+        resumen["duplicados_eliminados"],
     )
 
     return {

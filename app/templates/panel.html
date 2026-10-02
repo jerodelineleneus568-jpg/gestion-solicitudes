@@ -1,57 +1,47 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Panel de Solicitudes</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container-fluid py-2">
-    <!-- Encabezado y Acciones Principales -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="py-2">
+
+    <div class="d-flex flex-wrap justify-content-between
+                align-items-center gap-3 mb-4">
         <div>
-            <h3 class="text-primary fw-bold mb-0">Panel de Gestión de Solicitudes</h3>
-            <span class="text-muted small">Conectado como: <strong>{{ admin_nombre }}</strong> (Rol: Administrador)</span>
+            <h3 class="text-primary fw-bold mb-1">
+                Panel de Gestión de Solicitudes
+            </h3>
+            <span class="text-muted small">
+                Conectado como:
+                <strong>{{ admin_nombre }}</strong>
+            </span>
         </div>
+
         <div class="d-flex gap-2">
-            <form method="POST" action="{{ url_for('solicitud.sincronizar_api_rayen') }}" class="d-inline">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-primary" onclick="return confirm('¿Iniciar sincronización directa con Rayen Salud?');">
-                    🔄 Consultar reporte Rayen
-                </button>
-            </form>
-            <!-- Botón para abrir modal de importación del reporte oficial -->
-            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalImportar">
-                📤 Cargar Reporte
-            </button>
-            <a href="{{ url_for('export.exportar_excel') }}" class="btn btn-success">
+            <a href="{{ url_for('export.exportar_excel') }}"
+               class="btn btn-success">
                 📥 Descargar Excel
             </a>
-            <a href="{{ url_for('solicitud.ver_reporte', sistema='Rayen') }}" class="btn btn-outline-info">
-                👁️ Ver Reporte Rayen
-            </a>
-            <a href="{{ url_for('solicitud.logout') }}" class="btn btn-outline-danger">
-                Cerrar Sesión
+
+            <a href="{{ url_for('solicitud.logout') }}"
+               class="btn btn-outline-danger">
+                Cerrar sesión
             </a>
         </div>
     </div>
 
-    <!-- Mensajes Flash -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+    {% for categoria, mensaje in
+        get_flashed_messages(with_categories=true) %}
+        <div class="alert alert-{{ categoria }}
+                    alert-dismissible fade show"
+             role="alert">
+            {{ mensaje }}
+            <button type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"
+                    aria-label="Cerrar">
+            </button>
+        </div>
+    {% endfor %}
 
-    <!-- Tabla de Solicitudes -->
     <div class="card shadow-sm border-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -64,107 +54,110 @@
                         <th>Correo</th>
                         <th>Centros</th>
                         <th>Estado</th>
-                        <th>Acción Administrativa</th>
+                        <th>Acción administrativa</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     {% for s in solicitudes %}
                     <tr>
                         <td><strong>#{{ s.id }}</strong></td>
-                        <td><span class="badge bg-light text-dark border">{{ s.tipo_solicitud }}</span></td>
+                        <td>{{ s.tipo_solicitud }}</td>
+
                         <td>
-                            <span class="badge {{ 'bg-info text-dark' if s.sistema == 'Iris' else 'bg-primary' }}">
+                            <span class="badge
+                                {{ 'bg-info text-dark'
+                                   if s.sistema == 'Iris'
+                                   else 'bg-primary' }}">
                                 {{ s.sistema }}
                             </span>
                         </td>
+
                         <td>
-                            <div class="fw-semibold">{{ s.nombre_completo }}</div>
-                            <small class="text-muted">{{ s.rut }}</small>
+                            <div class="fw-semibold">
+                                {{ s.nombre_completo }}
+                            </div>
+                            <small class="text-muted">
+                                {{ s.rut }}
+                            </small>
                         </td>
+
                         <td>{{ s.correo }}</td>
-                        <td><small class="text-secondary">{{ s.centros }}</small></td>
+                        <td><small>{{ s.centros }}</small></td>
+
                         <td>
                             {% if s.estado == 'Pendiente' %}
-                                <span class="badge bg-warning text-dark">Pendiente</span>
+                                <span class="badge bg-warning text-dark">
+                                    Pendiente
+                                </span>
                             {% else %}
-                                <span class="badge bg-success">Gestionada</span>
-                                <div style="font-size: 0.75rem;" class="text-muted mt-1">
+                                <span class="badge bg-success">
+                                    Gestionada
+                                </span>
+                                <div class="text-muted small mt-1">
                                     Por: {{ s.gestionado_por_admin }}
                                 </div>
                             {% endif %}
                         </td>
+
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 {% if s.estado == 'Pendiente' %}
-                                <form method="POST" action="{{ url_for('solicitud.gestionar', solicitud_id=s.id) }}" class="m-0">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-primary">
-                                        Marcar como Gestionada
+                                <form method="POST"
+                                      action="{{ url_for(
+                                          'solicitud.gestionar',
+                                          solicitud_id=s.id
+                                      ) }}"
+                                      class="m-0">
+                                    <input type="hidden"
+                                           name="csrf_token"
+                                           value="{{ csrf_token() }}">
+
+                                    <button type="submit"
+                                            class="btn btn-sm btn-primary">
+                                        Marcar como gestionada
                                     </button>
                                 </form>
                                 {% else %}
-                                    <span class="text-muted small">✓ Solicitud Procesada</span>
+                                <span class="text-muted small">
+                                    ✓ Solicitud procesada
+                                </span>
                                 {% endif %}
 
-                                <!-- Botón para eliminar solicitudes de prueba o erróneas -->
-                                <form method="POST" action="{{ url_for('solicitud.eliminar', solicitud_id=s.id) }}" 
-                                      class="m-0" onsubmit="return confirm('¿Está seguro de eliminar la solicitud #{{ s.id }} permanentemente?');">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar registro">
+                                <form method="POST"
+                                      action="{{ url_for(
+                                          'solicitud.eliminar',
+                                          solicitud_id=s.id
+                                      ) }}"
+                                      class="m-0"
+                                      onsubmit="return confirm(
+                                          '¿Eliminar la solicitud #{{ s.id }}?'
+                                      );">
+                                    <input type="hidden"
+                                           name="csrf_token"
+                                           value="{{ csrf_token() }}">
+
+                                    <button type="submit"
+                                            class="btn btn-sm btn-outline-danger"
+                                            title="Eliminar solicitud">
                                         🗑️
                                     </button>
                                 </form>
-                                
                             </div>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center py-4 text-muted">No existen solicitudes registradas.</td>
+                        <td colspan="8"
+                            class="text-center py-4 text-muted">
+                            No existen solicitudes registradas.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-</div>
 
-<!-- Modal para cargar el reporte oficial (Excel/CSV descargado) -->
-<div class="modal fade" id="modalImportar" tabindex="-1" aria-labelledby="modalImportarLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="modalImportarLabel">📥 Conciliar Reporte Oficial</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST" action="{{ url_for('solicitud.importar_reporte') }}" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-body">
-                    <p class="text-muted small">
-                        Suba el archivo Excel exportado desde Rayen Salud (Reporte de licencias) o Iris para marcar automáticamente las solicitudes como gestionadas.
-                    </p>
-                    
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Sistema al que corresponde:</label>
-                        <select name="sistema_reporte" class="form-select" required>
-                            <option value="Rayen">Rayen</option>
-                            <option value="Iris">Iris</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Archivo (Excel o CSV):</label>
-                        <input type="file" name="archivo" class="form-control" accept=".xlsx, .xls, .csv" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success fw-bold">Procesar Archivo</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 {% endblock %}
-</body>
-</html>

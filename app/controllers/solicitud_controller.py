@@ -1,22 +1,12 @@
 from functools import wraps
 from flask import render_template, redirect, url_for, flash, session
-from app.services.rayen_service import ejecutar_scraping_reportes
-import pandas as pd
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from app.controllers.forms import FormularioSolicitud, FormularioLogin
 from app.models.solicitud_model import SolicitudModel, limpiar_rut
-import os
-import json
-from werkzeug.utils import secure_filename
+
+
 # 1. Definición del Blueprint (debe ir antes de cualquier @solicitud_bp.route)
 solicitud_bp = Blueprint('solicitud', __name__)
-
-ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv'}
-UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', '..', 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # 2. Decorador de autenticación de administradores
 def admin_required(f):
@@ -137,122 +127,6 @@ def eliminar(solicitud_id):
     return redirect(url_for('solicitud.panel_solicitudes'))
 
 
-# 9. Importar reporte oficial (Excel/CSV descargado)
-@solicitud_bp.route('/importar-reporte', methods=['POST'])
-@admin_required
-def importar_reporte():
-    if 'archivo' not in request.files:
-        flash("No se seleccionó ningún archivo.", "danger")
-        return redirect(url_for('solicitud.panel_solicitudes'))
-
-    file = request.files['archivo']
-    sistema_reporte = request.form.get('sistema_reporte', 'Rayen').strip()
-
-    if file.filename == '' or not allowed_file(file.filename):
-        flash("Formato no válido. Debe ser un archivo Excel (.xlsx, .xls) o CSV.", "danger")
-        return redirect(url_for('solicitud.panel_solicitudes'))
-
-    try:
-        filename = secure_filename(file.filename)
-        ruta_archivo = os.path.join(UPLOAD_FOLDER, f"ultimo_reporte_{sistema_reporte.lower()}.xlsx")
-        file.save(ruta_archivo)
-
-        # Detectar cabecera dinámica
-        df = None
-        for h_row in [1, 0, 2]:
-            try:
-                temp_df = pd.read_excel(ruta_archivo, header=h_row)
-                cols = [str(c).strip().lower() for c in temp_df.columns]
-                if any(k in cols for k in ['run', 'rut']):
-                    temp_df.columns = cols
-                    df = temp_df
-                    break
-            except Exception:
-                continue
-
-        if df is None:
-            raw_df = pd.read_excel(ruta_archivo, header=None)
-            for idx, row in raw_df.iterrows():
-                row_vals = [str(v).strip().lower() for v in row.values]
-                if 'run' in row_vals or 'rut' in row_vals:
-                    df = raw_df.iloc[idx+1:].copy()
-                    df.columns = row_vals
-                    break
-
-        if df is None:
-            flash("No se encontró la columna de RUT/RUN en el archivo cargado.", "danger")
-            return redirect(url_for('solicitud.panel_solicitudes'))
-
-        col_rut = next((c for c in df.columns if c in ['run', 'rut'] or 'run' in c or 'rut' in c), None)
-        col_fecha = next((c for c in df.columns if any(k in c for k in ['último login', 'ultimo login', 'login', 'fecha'])), None)
-
-        total_procesados = 0
-        admin_actual = session.get('nombre', 'Administrador')
-
-        for _, row in df.iterrows():
-            val_rut = str(row[col_rut]).strip()
-            val_fecha = str(row[col_fecha]) if col_fecha and pd.notna(row[col_fecha]) else None
-
-            if val_rut and val_rut.lower() not in ['nan', '', 'none']:
-                actualizados = SolicitudModel.actualizar_desde_reporte(
-                    rut=val_rut,
-                    sistema=sistema_reporte,
-                    fecha_movimiento=val_fecha,
-                    admin_nombre=f"Reporte ({admin_actual})"
-                )
-                total_procesados += actualizados
-
-        flash(f"Reporte de {sistema_reporte} cargado correctamente. Se conciliarion {total_procesados} solicitudes pendientes.", "success")
-        return redirect(url_for('solicitud.ver_reporte', sistema=sistema_reporte))
-
-    except Exception as e:
-        flash(f"Ocurrió un error al procesar el archivo: {str(e)}", "danger")
-    return redirect(url_for('solicitud.panel_solicitudes'))
-
-
-@solicitud_bp.route('/reporte/<sistema>')
-@admin_required
-def ver_reporte(sistema):
-    """Muestra la tabla interactiva de los datos del Excel cargado."""
-    ruta_archivo = os.path.join(UPLOAD_FOLDER, f"ultimo_reporte_{sistema.lower()}.xlsx")
-    
-    if not os.path.exists(ruta_archivo):
-        flash(f"Aún no se ha subido ningún reporte para {sistema}.", "info")
-        return redirect(url_for('solicitud.panel_solicitudes'))
-
-    try:
-        # Leer el Excel para mostrarlo en tabla
-        df = None
-        for h in [1, 0, 2]:
-            try:
-                temp = pd.read_excel(ruta_archivo, header=h)
-                cols_lower = [str(c).strip().lower() for c in temp.columns]
-                if any('run' in c or 'rut' in c for c in cols_lower):
-                    df = temp
-                    break
-            except Exception:
-                continue
-
-        if df is None:
-            df = pd.read_excel(ruta_archivo)
-
-        # Reemplazar NaN por texto vacío para HTML limpio
-        df = df.fillna('')
-        
-        columnas = list(df.columns)
-        registros = df.to_dict(orient='records')
-        total_filas = len(registros)
-
-        return render_template('ver_reporte.html', 
-                               sistema=sistema, 
-                               columnas=columnas, 
-                               registros=registros, 
-                               total_filas=total_filas)
-    except Exception as e:
-        flash(f"Error al leer el archivo guardado: {str(e)}", "danger")
-    return redirect(url_for('solicitud.panel_solicitudes'))
-
-# 10. Login y Logout
 @solicitud_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('rol') == 'admin':
@@ -279,7 +153,3 @@ def logout():
     flash("Has cerrado sesión correctamente.", "info")
     return redirect(url_for('solicitud.login'))
 
-@solicitud_bp.route('/sincronizar-api-rayen', methods=['POST'])
-@admin_required
-def sincronizar_api_rayen():
-    return redirect(url_for('export.exportar_excel'))

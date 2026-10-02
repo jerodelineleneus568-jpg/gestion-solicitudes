@@ -41,11 +41,11 @@ def exportar_excel():
         validar_fechas(fecha_inicio, fecha_termino)
 
         resultado = ejecutar_scraping_reportes(
-            
+            usuario=current_app.config["RAYEN_USUARIO"],
+            contrasena=current_app.config["RAYEN_CONTRASENA"],
             fecha_inicio=fecha_inicio,
             fecha_termino=fecha_termino,
             carpeta_descargas=current_app.config["UPLOAD_FOLDER"],
-            
         )
 
         return send_file(

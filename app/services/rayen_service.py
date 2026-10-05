@@ -12,6 +12,10 @@ from playwright.sync_api import (
 )
 
 
+# ==========================================================
+# 1. NORMALIZAR TEXTOS
+# ==========================================================
+
 def normalizar_texto(valor):
     texto = str(valor).strip().lower()
     texto = unicodedata.normalize("NFKD", texto)
@@ -22,6 +26,10 @@ def normalizar_texto(valor):
     )
     return " ".join(texto.split())
 
+
+# ==========================================================
+# 2. VALIDAR FECHAS
+# ==========================================================
 
 def validar_fechas(fecha_inicio, fecha_termino):
     """Valida fechas AAAA-MM-DD y un rango máximo de un mes."""
@@ -61,8 +69,12 @@ def validar_fechas(fecha_inicio, fecha_termino):
     return inicio, termino
 
 
+# ==========================================================
+# 3. IDENTIFICAR Y COMPLETAR LOS CAMPOS DE FECHA
+# ==========================================================
+
 def localizar_fecha(page, etiqueta, posicion):
-    """Busca por etiqueta o por los dos campos visibles del reporte."""
+    """Busca por etiqueta o por los dos campos visibles."""
     campo = page.get_by_label(etiqueta, exact=True)
 
     if campo.count() == 1:
@@ -93,6 +105,37 @@ def completar_fecha(campo, fecha):
     campo.fill(formato)
     campo.press("Tab")
 
+
+# ==========================================================
+# 4. MOSTRAR EL DIAGNÓSTICO DE LOS CAMPOS DEL REPORTE
+# ==========================================================
+
+def diagnosticar_campos_reporte(page):
+    """Muestra atributos y etiquetas, sin imprimir valores."""
+    campos = page.locator("input").evaluate_all("""
+        elementos => elementos.map(elemento => ({
+            type: elemento.type,
+            id: elemento.id,
+            name: elemento.name,
+            placeholder: elemento.placeholder,
+            visible: Boolean(elemento.getClientRects().length)
+        }))
+    """)
+
+    etiquetas = page.locator("label").evaluate_all("""
+        elementos => elementos.map(elemento => ({
+            texto: elemento.textContent.trim(),
+            for: elemento.htmlFor
+        }))
+    """)
+
+    print("Campos del reporte:", campos)
+    print("Etiquetas del reporte:", etiquetas)
+
+
+# ==========================================================
+# 5. LIMPIAR EL EXCEL
+# ==========================================================
 
 def limpiar_excel(ruta_original, ruta_destino):
     """Conserva activos, elimina filas iguales y agrega filtros."""
@@ -153,7 +196,7 @@ def limpiar_excel(ruta_original, ruta_destino):
         df[columna_estado].map(normalizar_texto) == "activo"
     ].copy()
 
-    # Conserva las asociaciones con establecimientos distintos.
+    # Elimina únicamente filas iguales en todas las columnas.
     limpios = activos.drop_duplicates().reset_index(drop=True)
     duplicados = len(activos) - len(limpios)
 
@@ -187,34 +230,9 @@ def limpiar_excel(ruta_original, ruta_destino):
     }
 
 
-def diagnosticar_login(page, carpeta, nombre):
-    """
-    Guarda una captura del ingreso y muestra atributos
-    de los campos, sin imprimir sus valores.
-    """
-    print("URL recibida:", page.url)
-    print("Título recibido:", page.title())
-
-    ruta_captura = carpeta / nombre
-
-    page.screenshot(
-        path=str(ruta_captura),
-        full_page=True,
-    )
-
-    print("Captura guardada en:", ruta_captura)
-
-    campos = page.locator("input").evaluate_all("""
-        elementos => elementos.map(elemento => ({
-            type: elemento.type,
-            id: elemento.id,
-            name: elemento.name,
-            placeholder: elemento.placeholder
-        }))
-    """)
-
-    print("Campos encontrados:", campos)
-
+# ==========================================================
+# 6. EJECUTAR LA AUTOMATIZACIÓN
+# ==========================================================
 
 def ejecutar_scraping_reportes(
     usuario,
@@ -224,12 +242,12 @@ def ejecutar_scraping_reportes(
     carpeta_descargas,
 ):
     """
-    Inicia sesión sin ventana, descarga el reporte
-    y genera un Excel de activos sin filas duplicadas.
+    Extrae el reporte de WebLun y genera un Excel
+    con registros activos sin filas completamente iguales.
     """
     if not usuario or not contrasena:
         raise ValueError(
-            "Configure RAYEN_USUARIO y RAYEN_CONTRASENA en .env."
+            "Configure las credenciales de WebLun en el archivo .env."
         )
 
     inicio, termino = validar_fechas(
@@ -237,10 +255,7 @@ def ejecutar_scraping_reportes(
         fecha_termino,
     )
 
-    carpeta = (
-        Path(carpeta_descargas).resolve()
-        / uuid4().hex
-    )
+    carpeta = Path(carpeta_descargas).resolve() / uuid4().hex
     carpeta.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as p:
@@ -255,7 +270,50 @@ def ejecutar_scraping_reportes(
             page = context.new_page()
             page.set_default_timeout(30000)
 
-            print("Abriendo WebLun...")
+            # Espera reutilizable para las capas de carga.
+            def esperar_carga(nombre_captura):
+                print("Esperando que WebLun termine de cargar...")
+
+                try:
+                    page.locator(
+                        ".backdrop:visible"
+                    ).first.wait_for(
+                        state="hidden",
+                        timeout=120000,
+                    )
+
+                except PlaywrightTimeoutError:
+                    ruta_error = carpeta / nombre_captura
+
+                    try:
+                        page.screenshot(
+                            path=str(ruta_error),
+                            full_page=True,
+                            mask=[
+                                page.locator(
+                                    'input[name="loginUsuario"]'
+                                ),
+                                page.locator(
+                                    'input[name="loginContrasena"]'
+                                ),
+                            ],
+                        )
+
+                        print("Captura de diagnóstico:", ruta_error)
+
+                    except Exception as error_captura:
+                        print(
+                            "No se pudo guardar la captura:",
+                            type(error_captura).__name__,
+                        )
+
+                    raise RuntimeError(
+                        "La capa de carga de WebLun "
+                        "no desapareció en 2 minutos."
+                    ) from None
+
+            # 1. Abrir WebLun.
+            print("1. Abriendo WebLun...")
 
             respuesta = page.goto(
                 "https://weblun.rayensalud.cl/",
@@ -263,60 +321,33 @@ def ejecutar_scraping_reportes(
                 timeout=60000,
             )
 
-            # Abre el ingreso desde la navegación del sitio.
+            if respuesta and respuesta.status >= 400:
+                raise RuntimeError(
+                    f"WebLun respondió con HTTP {respuesta.status}."
+                )
+
             page.get_by_text(
                 "Ingresar",
                 exact=True,
             ).click()
-            
-            print(
-                "Estado HTTP:",
-                respuesta.status if respuesta else "Sin respuesta",
+
+            # 2. Iniciar sesión.
+            print("2. Ingresando con la cuenta de WebLun...")
+
+            campo_usuario = page.locator(
+                'input[name="loginUsuario"]'
+            )
+            campo_password = page.locator(
+                'input[name="loginContrasena"]'
             )
 
-            diagnosticar_login(
-                page,
-                carpeta,
-                "antes_login.png",
+            campo_usuario.wait_for(
+                state="visible",
+                timeout=60000,
             )
-
-            print("Buscando el campo Usuario...")
-
-            campo_usuario = page.get_by_placeholder(
-                "Usuario",
-                exact=True,
-            )
-
-            try:
-                campo_usuario.wait_for(
-                    state="visible",
-                    timeout=30000,
-                )
-            except PlaywrightTimeoutError:
-                # Todavía no se han escrito las credenciales.
-                try:
-                    diagnosticar_login(
-                        page,
-                        carpeta,
-                        "login_no_encontrado.png",
-                    )
-                except Exception as error:
-                    print(
-                        "No se pudo completar el diagnóstico:",
-                        type(error).__name__,
-                    )
-
-                raise RuntimeError(
-                    "No se encontró el campo Usuario. "
-                    f"Revise las capturas en: {carpeta}"
-                ) from None
 
             campo_usuario.fill(usuario)
-
-            page.get_by_placeholder(
-                "Contraseña",
-                exact=True,
-            ).fill(contrasena)
+            campo_password.fill(contrasena)
 
             page.get_by_role(
                 "button",
@@ -324,36 +355,108 @@ def ejecutar_scraping_reportes(
                 exact=True,
             ).click()
 
-            page.get_by_text(
+            menu_reportes = page.get_by_text(
                 "Reportes",
                 exact=True,
-            ).wait_for(
-                state="visible",
-                timeout=60000,
             )
 
-            print("Sesión detectada. Abriendo reporte...")
+            try:
+                menu_reportes.wait_for(
+                    state="visible",
+                    timeout=60000,
+                )
 
-            page.goto(
-                "https://weblun.rayensalud.cl/reporte-activo",
-                wait_until="domcontentloaded",
-                timeout=60000,
-            )
+            except PlaywrightTimeoutError:
+                ruta_error = carpeta / "error_inicio_sesion.png"
 
-            page.get_by_text(
+                try:
+                    page.screenshot(
+                        path=str(ruta_error),
+                        full_page=True,
+                        mask=[campo_usuario, campo_password],
+                    )
+
+                    print("Captura de diagnóstico:", ruta_error)
+
+                except Exception as error_captura:
+                    print(
+                        "No se pudo guardar la captura:",
+                        type(error_captura).__name__,
+                    )
+
+                raise RuntimeError(
+                    "No se confirmó el inicio de sesión en WebLun."
+                ) from None
+
+            # 3. Esperar antes de abrir el menú Reportes.
+            print("3. Abriendo Reportes...")
+
+            esperar_carga("carga_antes_reportes.png")
+            menu_reportes.click(timeout=60000)
+
+            opcion_reporte = page.get_by_text(
                 "Reporte de uso de licencias asignadas",
                 exact=True,
-            ).wait_for(
+            )
+
+            opcion_reporte.wait_for(
                 state="visible",
                 timeout=60000,
             )
 
+            # Esperar también antes de abrir la tarjeta.
+            esperar_carga("carga_reportes.png")
+            opcion_reporte.click(timeout=60000)
+
+            # 4. Diagnosticar el formulario de fechas.
+            print("4. Revisando el formulario del reporte...")
+
+            try:
+                page.locator("input:visible").first.wait_for(
+                    state="visible",
+                    timeout=30000,
+                )
+
+            except PlaywrightTimeoutError:
+                print(
+                    "No apareció un input visible "
+                    "en la página principal."
+                )
+
+            diagnosticar_campos_reporte(page)
+
+            print("Cantidad de frames:", len(page.frames))
+
+            for numero, frame in enumerate(page.frames):
+                campos_frame = frame.locator("input").evaluate_all("""
+                    elementos => elementos.map(elemento => ({
+                        type: elemento.type,
+                        id: elemento.id,
+                        name: elemento.name,
+                        placeholder: elemento.placeholder
+                    }))
+                """)
+
+                print(
+                    f"Campos del frame {numero}:",
+                    campos_frame,
+                )
+
+            ruta_captura = carpeta / "formulario_reporte.png"
+
+            page.screenshot(
+                path=str(ruta_captura),
+                full_page=True,
+            )
+
+            print("Captura del reporte:", ruta_captura)
+
+            # Completar las fechas.
             campo_inicio = localizar_fecha(
                 page,
                 "Fecha inicio",
                 0,
             )
-
             campo_termino = localizar_fecha(
                 page,
                 "Fecha término",
@@ -367,10 +470,22 @@ def ejecutar_scraping_reportes(
                 label="Sólo con login"
             )
 
-            page.get_by_role(
-                "button",
-                name=re.compile(r"^\s*Obtener\s*$"),
-            ).click()
+            esperar_carga("carga_antes_obtener.png")
+
+            boton_obtener = page.get_by_text(
+                "Obtener",
+                exact=True,
+            )
+
+            boton_obtener.wait_for(
+                state="visible",
+                timeout=30000,
+            )
+
+            boton_obtener.click(timeout=60000)
+
+            # 5. Descargar el Excel.
+            print("5. Esperando el Excel...")
 
             boton_excel = page.get_by_text(
                 "Excel",
@@ -393,31 +508,26 @@ def ejecutar_scraping_reportes(
 
             if extension not in {".xlsx", ".xls"}:
                 raise ValueError(
-                    "La descarga no tiene un formato Excel reconocido."
+                    "WebLun no descargó un archivo Excel reconocido."
                 )
 
             ruta_original = carpeta / f"original{extension}"
             descarga.save_as(str(ruta_original))
 
-            print("Excel descargado.")
-
         finally:
             browser.close()
 
-    ruta_limpia = carpeta / "Reporte_Rayen_Activos.xlsx"
+    # 6. Procesar el Excel descargado.
+    print("6. Filtrando activos y eliminando filas duplicadas...")
 
-    resumen = limpiar_excel(
-        ruta_original,
-        ruta_limpia,
-    )
+    ruta_limpia = carpeta / "Reporte_Rayen_Activos.xlsx"
+    resumen = limpiar_excel(ruta_original, ruta_limpia)
 
     print("Registros activos:", resumen["registros_activos"])
-    print(
-        "Duplicados eliminados:",
-        resumen["duplicados_eliminados"],
-    )
+    print("Duplicados eliminados:", resumen["duplicados_eliminados"])
 
     return {
         "ruta": str(ruta_limpia),
+        "reporte_id": carpeta.name,
         **resumen,
     }

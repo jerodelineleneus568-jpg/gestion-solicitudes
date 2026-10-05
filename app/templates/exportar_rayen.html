@@ -5,7 +5,7 @@
     <div class="col-md-7">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Descargar reporte de Rayen</h5>
+                <h5 class="mb-0">Extraer información de WebLun</h5>
             </div>
 
             <div class="card-body p-4">
@@ -16,12 +16,11 @@
                     </div>
                 {% endfor %}
 
-                <p id="avisoRayen"
-                   class="text-muted small mt-3"
-                   hidden>
-                       Conectando con WebLun y preparando el reporte.
-                       Espere a que se descargue el archivo Excel.
-                    </p>
+                <p class="text-muted">
+                    Seleccione un período de hasta un mes.
+                    Se consultará «Sólo con login» y se mostrarán
+                    los registros activos sin filas duplicadas.
+                </p>
 
                 <form method="POST"
                       action="{{ url_for('export.exportar_excel') }}"
@@ -39,7 +38,7 @@
                                id="fecha_inicio"
                                name="fecha_inicio"
                                class="form-control"
-                               value="{{ fecha_inicio|default('') }}"
+                               value="{{ fecha_inicio }}"
                                required>
                     </div>
 
@@ -51,24 +50,35 @@
                                id="fecha_termino"
                                name="fecha_termino"
                                class="form-control"
-                               value="{{ fecha_termino|default('') }}"
+                               value="{{ fecha_termino }}"
                                required>
                     </div>
 
-                    <button type="submit" class="btn btn-success">
-                        Descargar Excel de activos
-                    </button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit"
+                                id="botonExtraer"
+                                class="btn btn-success">
+                            Extraer información
+                        </button>
 
-                    <a href="{{ url_for('solicitud.panel_solicitudes') }}"
-                       class="btn btn-outline-secondary">
-                        Volver al panel
-                    </a>
+                        <a href="{{ url_for('solicitud.panel_solicitudes') }}"
+                           class="btn btn-outline-secondary">
+                            Volver al panel
+                        </a>
+
+                
+                           <a href="{{ url_for('export.resultado_rayen') }}"
+                              class="btn btn-outline-info">
+                               Ver última extracción
+                            </a>
+                        
+                    </div>
 
                     <p id="avisoRayen"
                        class="text-muted small mt-3"
                        hidden>
-                        Procesando el reporte. Espere a que se
-                        descargue el archivo.
+                        Consultando WebLun. Espere mientras se
+                        obtiene y procesa el reporte.
                     </p>
                 </form>
             </div>
@@ -79,6 +89,7 @@
 <script>
 document.getElementById('formRayen').addEventListener('submit', function () {
     document.getElementById('avisoRayen').hidden = false;
+    document.getElementById('botonExtraer').disabled = true;
 });
 </script>
 {% endblock %}

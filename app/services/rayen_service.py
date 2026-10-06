@@ -12,9 +12,9 @@ from playwright.sync_api import (
 )
 
 
-# ==========================================================
+
 # 1. NORMALIZAR TEXTOS
-# ==========================================================
+
 
 def normalizar_texto(valor):
     texto = str(valor).strip().lower()
@@ -27,9 +27,9 @@ def normalizar_texto(valor):
     return " ".join(texto.split())
 
 
-# ==========================================================
+
 # 2. VALIDAR FECHAS
-# ==========================================================
+
 
 def validar_fechas(fecha_inicio, fecha_termino):
     """Valida fechas AAAA-MM-DD y un rango máximo de un mes."""
@@ -40,13 +40,13 @@ def validar_fechas(fecha_inicio, fecha_termino):
         raise ValueError(
             "Ingrese ambas fechas correctamente."
         ) from None
-
+    
     if inicio > termino:
         raise ValueError(
             "La fecha de inicio no puede ser posterior "
             "a la fecha de término."
         )
-
+    
     mes_siguiente = inicio.month % 12 + 1
     anio_siguiente = inicio.year + (inicio.month == 12)
 
@@ -65,13 +65,13 @@ def validar_fechas(fecha_inicio, fecha_termino):
         raise ValueError(
             "WebLun permite consultar un rango máximo de un mes."
         )
-
+    
     return inicio, termino
 
 
-# ==========================================================
+
 # 3. IDENTIFICAR Y COMPLETAR LOS CAMPOS DE FECHA
-# ==========================================================
+
 
 def localizar_fecha(page, etiqueta, posicion):
     """Busca por etiqueta o por los dos campos visibles."""
@@ -79,7 +79,7 @@ def localizar_fecha(page, etiqueta, posicion):
 
     if campo.count() == 1:
         return campo
-
+    
     campos = page.locator(
         'input:visible:not([type="hidden"])'
         ':not([type="button"]):not([type="submit"])'
@@ -91,7 +91,7 @@ def localizar_fecha(page, etiqueta, posicion):
             f"No se pudo identificar el campo '{etiqueta}'. "
             "Es necesario revisar su selector."
         )
-
+    
     return campos.nth(posicion)
 
 
@@ -106,9 +106,9 @@ def completar_fecha(campo, fecha):
     campo.press("Tab")
 
 
-# ==========================================================
+
 # 4. MOSTRAR EL DIAGNÓSTICO DE LOS CAMPOS DEL REPORTE
-# ==========================================================
+
 
 def diagnosticar_campos_reporte(page):
     """Muestra atributos y etiquetas, sin imprimir valores."""
@@ -133,9 +133,9 @@ def diagnosticar_campos_reporte(page):
     print("Etiquetas del reporte:", etiquetas)
 
 
-# ==========================================================
+
 # 5. LIMPIAR EL EXCEL
-# ==========================================================
+
 
 def limpiar_excel(ruta_original, ruta_destino):
     """Conserva activos, elimina filas iguales y agrega filtros."""
@@ -166,7 +166,7 @@ def limpiar_excel(ruta_original, ruta_destino):
             "No se encontró una cabecera con RUN/RUT "
             "y Estado actual en el Excel."
         )
-
+    
     columnas = [
         " ".join(str(valor).split())
         for valor in tabla.loc[indice_cabecera]
@@ -174,7 +174,7 @@ def limpiar_excel(ruta_original, ruta_destino):
 
     df = tabla.loc[indice_cabecera + 1:].copy()
     df.columns = columnas
-
+    
     # Descarta columnas sin encabezado.
     df = df.loc[:, [bool(columna) for columna in columnas]].copy()
 
@@ -182,7 +182,7 @@ def limpiar_excel(ruta_original, ruta_destino):
         raise ValueError(
             "El reporte tiene encabezados repetidos."
         )
-
+    
     for columna in df.columns:
         df[columna] = df[columna].str.strip()
 
@@ -230,9 +230,9 @@ def limpiar_excel(ruta_original, ruta_destino):
     }
 
 
-# ==========================================================
+
 # 6. EJECUTAR LA AUTOMATIZACIÓN
-# ==========================================================
+
 
 def ejecutar_scraping_reportes(
     usuario,
@@ -249,12 +249,12 @@ def ejecutar_scraping_reportes(
         raise ValueError(
             "Configure las credenciales de WebLun en el archivo .env."
         )
-
+    
     inicio, termino = validar_fechas(
         fecha_inicio,
         fecha_termino,
     )
-
+    
     carpeta = Path(carpeta_descargas).resolve() / uuid4().hex
     carpeta.mkdir(parents=True, exist_ok=True)
 
@@ -311,7 +311,7 @@ def ejecutar_scraping_reportes(
                         "La capa de carga de WebLun "
                         "no desapareció en 2 minutos."
                     ) from None
-
+                
             # 1. Abrir WebLun.
             print("1. Abriendo WebLun...")
 
@@ -325,7 +325,7 @@ def ejecutar_scraping_reportes(
                 raise RuntimeError(
                     f"WebLun respondió con HTTP {respuesta.status}."
                 )
-
+            
             page.get_by_text(
                 "Ingresar",
                 exact=True,
@@ -387,7 +387,7 @@ def ejecutar_scraping_reportes(
                 raise RuntimeError(
                     "No se confirmó el inicio de sesión en WebLun."
                 ) from None
-
+            
             # 3. Esperar antes de abrir el menú Reportes.
             print("3. Abriendo Reportes...")
 
@@ -483,7 +483,7 @@ def ejecutar_scraping_reportes(
             )
 
             boton_obtener.click(timeout=60000)
-
+            
             # 5. Descargar el Excel.
             print("5. Esperando el Excel...")
 
@@ -510,7 +510,7 @@ def ejecutar_scraping_reportes(
                 raise ValueError(
                     "WebLun no descargó un archivo Excel reconocido."
                 )
-
+            
             ruta_original = carpeta / f"original{extension}"
             descarga.save_as(str(ruta_original))
 
@@ -525,9 +525,10 @@ def ejecutar_scraping_reportes(
 
     print("Registros activos:", resumen["registros_activos"])
     print("Duplicados eliminados:", resumen["duplicados_eliminados"])
-
+    
     return {
         "ruta": str(ruta_limpia),
+        "ruta_original": str(ruta_original),
         "reporte_id": carpeta.name,
         **resumen,
     }

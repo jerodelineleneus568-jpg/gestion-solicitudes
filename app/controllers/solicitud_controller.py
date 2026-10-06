@@ -37,7 +37,7 @@ def registrar():
             nombre_registrado = (solicitud_existente['nombre_completo'] or '').strip()
 
             # Verificar si el nombre coincide
-    
+
             if nombre_registrado and nombre.lower() != nombre_registrado.lower():
                 flash(
                     f"El RUT {rut} ya se encuentra registrado a nombre de '{nombre_registrado}'. "
@@ -119,6 +119,7 @@ def panel_solicitudes():
         solicitudes=SolicitudModel.obtener_todas(),
         admin_nombre=session.get('nombre', 'Administrador'),
         reporte_weblun=SolicitudModel.obtener_reporte_actual(),
+        parametros_pasivacion=SolicitudModel.obtener_configuracion_pasivacion(),
     )
 
 # 7. Marcar como gestionada manualmente
@@ -171,6 +172,7 @@ def logout():
 @admin_required
 def panel_pasivacion():
     from app.services.pasivacion_service import calcular_reporte_pasivacion, fecha_hoy_chile
+    parametros = SolicitudModel.obtener_configuracion_pasivacion()
     hoy = fecha_hoy_chile()
     filas = []
     resumen = {'total': 0, 'Puede pasivarse': 0, 'No pasivar': 0, 'Revisar': 0}
@@ -182,7 +184,11 @@ def panel_pasivacion():
         reporte = dict(registro) if registro else None
     if reporte:
         try:
-            filas, resumen = calcular_reporte_pasivacion(reporte['ruta_excel'], hoy)
+            filas, resumen = calcular_reporte_pasivacion(
+                reporte['ruta_excel'], hoy,
+                umbral_login=parametros['dias_sin_login'],
+                umbral_movimiento=parametros['dias_sin_movimiento'],
+            )
         except ValueError as error:
             flash(str(error), 'warning')
         except Exception:
@@ -190,5 +196,30 @@ def panel_pasivacion():
             flash('No se pudo leer el reporte de pasivación. Revise la terminal.', 'danger')
     return render_template(
         'pasivacion.html', filas=filas, resumen=resumen, reporte=reporte,
-        fecha_evaluacion=hoy.strftime('%d/%m/%Y'),
+        fecha_evaluacion=hoy.strftime('%d/%m/%Y'), parametros=parametros,
     )
+
+
+@solicitud_bp.route('/pasivacion/configuracion', methods=['GET', 'POST'])
+@admin_required
+def configurar_pasivacion():
+    parametros = SolicitudModel.obtener_configuracion_pasivacion()
+    valores = dict(parametros)
+    if request.method == 'POST':
+        valores['dias_sin_login'] = request.form.get('dias_sin_login', '')
+        valores['dias_sin_movimiento'] = request.form.get('dias_sin_movimiento', '')
+        try:
+            SolicitudModel.guardar_configuracion_pasivacion(
+                valores['dias_sin_login'], valores['dias_sin_movimiento'],
+                session.get('nombre', 'Administrador'),
+            )
+        except ValueError as error:
+            flash(str(error), 'danger')
+            return render_template('configuracion_pasivacion.html', parametros=parametros, valores=valores), 400
+        except Exception:
+            current_app.logger.exception('No se pudieron guardar los parámetros de pasivación.')
+            flash('No se pudo guardar la configuración. Revise la terminal.', 'danger')
+            return render_template('configuracion_pasivacion.html', parametros=parametros, valores=valores), 500
+        flash('Reglas guardadas. La evaluación usará los nuevos valores.', 'success')
+        return redirect(url_for('solicitud.panel_pasivacion'))
+    return render_template('configuracion_pasivacion.html', parametros=parametros, valores=valores)

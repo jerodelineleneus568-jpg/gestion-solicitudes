@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-
 {% block content %}
 <div class="py-2">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -10,11 +9,9 @@
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ url_for('export.exportar_excel') }}" class="btn btn-success">📥 Extraer datos de WebLun</a>
             <a href="{{ url_for('export.descargar_rayen') }}" class="btn btn-outline-success">Descargar Excel de activos</a>
+            <a href="{{ url_for('solicitud.panel_pasivacion') }}" class="btn btn-outline-primary">Evaluar pasivación</a>
+            <a href="{{ url_for('solicitud.configurar_pasivacion') }}" class="btn btn-outline-secondary">Configurar reglas</a>
             <a href="{{ url_for('solicitud.logout') }}" class="btn btn-outline-danger">Cerrar sesión</a>
-            <a href="{{ url_for('solicitud.panel_pasivacion') }}"
-               class="btn btn-outline-primary">
-                Evaluar pasivación
-            </a>
         </div>
     </div>
     {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
@@ -45,7 +42,6 @@
                         <th>Estado de solicitud</th><th>Acción administrativa</th>
                     </tr>
                 </thead>
-
                 <tbody>
                     {% for s in solicitudes %}
                     <tr data-solicitud>
@@ -89,7 +85,6 @@
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar solicitud">🗑️</button>
                                 </form>
                             </div>
-
                         </td>
                     </tr>
                     {% else %}
@@ -99,7 +94,6 @@
             </table>
         </div>
     </div>
-    
 </div>
 <script>
 document.getElementById('buscarSolicitud').addEventListener('input', function () {

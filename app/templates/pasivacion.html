@@ -8,6 +8,7 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{{ url_for('export.exportar_excel') }}" class="btn btn-success">Actualizar reporte de WebLun</a>
+            <a href="{{ url_for('solicitud.configurar_pasivacion') }}" class="btn btn-outline-primary">Configurar reglas</a>
             <a href="{{ url_for('solicitud.panel_solicitudes') }}" class="btn btn-outline-secondary">Volver al panel</a>
         </div>
     </div>
@@ -15,7 +16,7 @@
     <div class="alert alert-{{ categoria }}" role="alert">{{ mensaje }}</div>
     {% endfor %}
     <div class="alert alert-info">
-        <strong>Regla:</strong> 2 días o más desde el último login <strong>y</strong> 7 días o más desde el último movimiento.
+        <strong>Regla:</strong> {{ parametros.dias_sin_login }} días o más desde el último login <strong>y</strong> {{ parametros.dias_sin_movimiento }} días o más desde el último movimiento.
         Se cuentan días calendario. Si falta una fecha, el registro queda para revisión.
         Este panel muestra recomendaciones según el Excel; no aplica la pasivación.
     </div>

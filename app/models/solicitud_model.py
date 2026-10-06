@@ -86,6 +86,46 @@ class SolicitudModel:
                 WHERE LOWER(TRIM(sistema)) != 'rayen'
                 AND estado_registro_weblun = 'Sin reporte disponible' ''')
 
+            conn.execute("""CREATE TABLE IF NOT EXISTS configuracion_pasivacion (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                dias_sin_login INTEGER NOT NULL CHECK (dias_sin_login BETWEEN 1 AND 3650),
+                dias_sin_movimiento INTEGER NOT NULL CHECK (dias_sin_movimiento BETWEEN 1 AND 3650),
+                actualizado_por TEXT NOT NULL DEFAULT 'Configuración inicial',
+                fecha_actualizacion TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )""")
+            conn.execute("""INSERT OR IGNORE INTO configuracion_pasivacion
+                (id, dias_sin_login, dias_sin_movimiento) VALUES (1, 2, 7)""")
+
+    @classmethod
+    def obtener_configuracion_pasivacion(cls):
+        with cls.conexion() as conn:
+            fila = conn.execute('SELECT * FROM configuracion_pasivacion WHERE id = 1').fetchone()
+            if fila is None:
+                raise RuntimeError('No se ha inicializado la configuración de pasivación.')
+            return dict(fila)
+
+    @staticmethod
+    def validar_dias_pasivacion(valor):
+        texto = str(valor).strip()
+        if not re.fullmatch(r'[0-9]{1,4}', texto):
+            raise ValueError('Ingrese cantidades de días enteras entre 1 y 3650.')
+        numero = int(texto)
+        if not 1 <= numero <= 3650:
+            raise ValueError('Ingrese cantidades de días enteras entre 1 y 3650.')
+        return numero
+
+    @classmethod
+    def guardar_configuracion_pasivacion(cls, dias_login, dias_movimiento, administrador):
+        login = cls.validar_dias_pasivacion(dias_login)
+        movimiento = cls.validar_dias_pasivacion(dias_movimiento)
+        with cls.conexion() as conn:
+            cursor = conn.execute("""UPDATE configuracion_pasivacion SET
+                dias_sin_login = ?, dias_sin_movimiento = ?, actualizado_por = ?,
+                fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = 1""",
+                (login, movimiento, str(administrador)))
+            if cursor.rowcount != 1:
+                raise RuntimeError('No se ha inicializado la configuración de pasivación.')
+
     @classmethod
     def crear_solicitud(cls, tipo_solicitud, sistema, nombre_completo, rut, correo, centros, gestionado_por, ip_origen):
         with cls.conexion() as conn:

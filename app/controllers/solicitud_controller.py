@@ -1,10 +1,9 @@
 from functools import wraps
-from flask import render_template, redirect, url_for, flash, session
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from app.controllers.forms import FormularioSolicitud, FormularioLogin
 from app.models.solicitud_model import SolicitudModel, limpiar_rut
-
-
+from flask import current_app
 # 1. Definición del Blueprint (debe ir antes de cualquier @solicitud_bp.route)
 solicitud_bp = Blueprint('solicitud', __name__)
 
@@ -12,7 +11,7 @@ solicitud_bp = Blueprint('solicitud', __name__)
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if session.get('rol') != 'admin':
+        if not session.get('user_id') or session.get('rol') != 'admin':
             flash("Debe iniciar sesión como administrador para acceder.", "warning")
             return redirect(url_for('solicitud.login'))
         return f(*args, **kwargs)
@@ -36,8 +35,9 @@ def registrar():
         solicitud_existente = SolicitudModel.existe_solicitud_para_sistema(rut_clean, sistema)
         if solicitud_existente:
             nombre_registrado = (solicitud_existente['nombre_completo'] or '').strip()
-            
+
             # Verificar si el nombre coincide
+    
             if nombre_registrado and nombre.lower() != nombre_registrado.lower():
                 flash(
                     f"El RUT {rut} ya se encuentra registrado a nombre de '{nombre_registrado}'. "
@@ -45,7 +45,7 @@ def registrar():
                     "danger"
                 )
                 return render_template('formulario.html', form=form)
-
+            
             estado_actual = solicitud_existente['estado']
             admin_responsable = solicitud_existente['gestionado_por_admin'] or "Administrador"
             fecha_g = solicitud_existente['fecha_gestion'] or ""
@@ -62,22 +62,31 @@ def registrar():
                     "warning"
                 )
             return render_template('formulario.html', form=form)
-
+        
         # 2. Registrar la solicitud si no existe duplicidad
-        SolicitudModel.crear_solicitud(
-            tipo_solicitud=tipo,
-            sistema=sistema,
-            nombre_completo=nombre,
-            rut=rut,
-            correo=correo,
-            centros=centros,
-            gestionado_por="Solicitante (Web)",
-            ip_origen=ip_origen
-        )
+        try:
+            SolicitudModel.crear_solicitud(
+                tipo_solicitud=tipo,
+                sistema=sistema,
+                nombre_completo=nombre,
+                rut=rut,
+                correo=correo,
+                centros=centros,
+                gestionado_por="Solicitante (Web)",
+                ip_origen=ip_origen
+            )
+        except Exception:
+            current_app.logger.exception('No se pudo registrar la solicitud y consultar el Excel.')
+            flash(
+                'No se pudo registrar la solicitud. Administración debe revisar '
+                'el Excel de sincronización antes de volver a intentarlo.',
+                'danger',
+            )
+            return render_template('formulario.html', form=form)
 
         flash(f"¡Solicitud para el sistema {sistema} enviada con éxito!", "success")
         return redirect(url_for('solicitud.exito', sistema=sistema))
-
+    
     return render_template('formulario.html', form=form)
 
 # 4. Pantalla de éxito tras el registro
@@ -105,9 +114,12 @@ def consultar_estado():
 @solicitud_bp.route('/panel')
 @admin_required
 def panel_solicitudes():
-    solicitudes = SolicitudModel.obtener_todas()
-    admin_nombre = session.get('nombre', 'Administrador')
-    return render_template('panel.html', solicitudes=solicitudes, admin_nombre=admin_nombre)
+    return render_template(
+        'panel.html',
+        solicitudes=SolicitudModel.obtener_todas(),
+        admin_nombre=session.get('nombre', 'Administrador'),
+        reporte_weblun=SolicitudModel.obtener_reporte_actual(),
+    )
 
 # 7. Marcar como gestionada manualmente
 @solicitud_bp.route('/gestionar/<int:solicitud_id>', methods=['POST'])
@@ -131,12 +143,13 @@ def eliminar(solicitud_id):
 def login():
     if session.get('rol') == 'admin':
         return redirect(url_for('solicitud.panel_solicitudes'))
-
+    
     form = FormularioLogin()
     if form.validate_on_submit():
         # Cambiado a form.usuario.data
         user = SolicitudModel.autenticar_admin(form.usuario.data.strip(), form.password.data)
         if user:
+            session.clear()
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['nombre'] = user['nombre']
@@ -153,3 +166,29 @@ def logout():
     flash("Has cerrado sesión correctamente.", "info")
     return redirect(url_for('solicitud.login'))
 
+
+@solicitud_bp.route('/pasivacion')
+@admin_required
+def panel_pasivacion():
+    from app.services.pasivacion_service import calcular_reporte_pasivacion, fecha_hoy_chile
+    hoy = fecha_hoy_chile()
+    filas = []
+    resumen = {'total': 0, 'Puede pasivarse': 0, 'No pasivar': 0, 'Revisar': 0}
+    # Referencia institucional: la misma que usan las nuevas solicitudes.
+    with SolicitudModel.conexion() as conn:
+        registro = conn.execute(
+            'SELECT ruta_excel, fecha_sincronizacion FROM reporte_weblun_actual WHERE id = 1'
+        ).fetchone()
+        reporte = dict(registro) if registro else None
+    if reporte:
+        try:
+            filas, resumen = calcular_reporte_pasivacion(reporte['ruta_excel'], hoy)
+        except ValueError as error:
+            flash(str(error), 'warning')
+        except Exception:
+            current_app.logger.exception('No se pudo calcular el reporte de pasivación.')
+            flash('No se pudo leer el reporte de pasivación. Revise la terminal.', 'danger')
+    return render_template(
+        'pasivacion.html', filas=filas, resumen=resumen, reporte=reporte,
+        fecha_evaluacion=hoy.strftime('%d/%m/%Y'),
+    )

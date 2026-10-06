@@ -4,82 +4,26 @@
 <div class="row justify-content-center">
     <div class="col-md-7">
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Extraer información de WebLun</h5>
-            </div>
-
+            <div class="card-header bg-primary text-white"><h5 class="mb-0">Extraer y sincronizar WebLun</h5></div>
             <div class="card-body p-4">
-                {% for categoria, mensaje in
-                    get_flashed_messages(with_categories=true) %}
-                    <div class="alert alert-{{ categoria }}">
-                        {{ mensaje }}
-                    </div>
+                {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
+                <div class="alert alert-{{ categoria }}">{{ mensaje }}</div>
                 {% endfor %}
-
-                <p class="text-muted">
-                    Seleccione un período de hasta un mes.
-                    Se consultará «Sólo con login» y se mostrarán
-                    los registros activos sin filas duplicadas.
-                </p>
-
-                <form method="POST"
-                      action="{{ url_for('export.exportar_excel') }}"
-                      id="formRayen">
-
-                    <input type="hidden"
-                           name="csrf_token"
-                           value="{{ csrf_token() }}">
-
+                <p class="text-muted">Selecciona un período de hasta un mes. El Excel original se usará para actualizar las solicitudes. Se conservará también la descarga de activos sin filas duplicadas.</p>
+                <form method="POST" action="{{ url_for('export.exportar_excel') }}" id="formRayen">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
-                        <label for="fecha_inicio" class="form-label">
-                            Fecha de inicio
-                        </label>
-                        <input type="date"
-                               id="fecha_inicio"
-                               name="fecha_inicio"
-                               class="form-control"
-                               value="{{ fecha_inicio }}"
-                               required>
+                        <label for="fecha_inicio" class="form-label">Fecha de inicio</label>
+                        <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control" value="{{ fecha_inicio|default('') }}" required>
                     </div>
-
+                    
                     <div class="mb-4">
-                        <label for="fecha_termino" class="form-label">
-                            Fecha de término
-                        </label>
-                        <input type="date"
-                               id="fecha_termino"
-                               name="fecha_termino"
-                               class="form-control"
-                               value="{{ fecha_termino }}"
-                               required>
+                        <label for="fecha_termino" class="form-label">Fecha de término</label>
+                        <input type="date" id="fecha_termino" name="fecha_termino" class="form-control" value="{{ fecha_termino|default('') }}" required>
                     </div>
-
-                    <div class="d-flex flex-wrap gap-2">
-                        <button type="submit"
-                                id="botonExtraer"
-                                class="btn btn-success">
-                            Extraer información
-                        </button>
-
-                        <a href="{{ url_for('solicitud.panel_solicitudes') }}"
-                           class="btn btn-outline-secondary">
-                            Volver al panel
-                        </a>
-
-                
-                           <a href="{{ url_for('export.resultado_rayen') }}"
-                              class="btn btn-outline-info">
-                               Ver última extracción
-                            </a>
-                        
-                    </div>
-
-                    <p id="avisoRayen"
-                       class="text-muted small mt-3"
-                       hidden>
-                        Consultando WebLun. Espere mientras se
-                        obtiene y procesa el reporte.
-                    </p>
+                    <button type="submit" id="botonExtraer" class="btn btn-success">Extraer y actualizar solicitudes</button>
+                    <a href="{{ url_for('solicitud.panel_solicitudes') }}" class="btn btn-outline-secondary">Volver al panel</a>
+                    <p id="avisoRayen" class="text-muted small mt-3" hidden>Consultando WebLun y actualizando las solicitudes. Espera a que termine.</p>
                 </form>
             </div>
         </div>

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="py-2">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h3 class="text-primary fw-bold mb-1">Evaluación de pasivación WebLun</h3>
+            <span class="text-muted small">Fecha de evaluación: <strong>{{ fecha_evaluacion }}</strong> · Hora de Chile</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('export.exportar_excel') }}" class="btn btn-success">Actualizar reporte de WebLun</a>
+            <a href="{{ url_for('solicitud.panel_solicitudes') }}" class="btn btn-outline-secondary">Volver al panel</a>
+        </div>
+    </div>
+    {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
+    <div class="alert alert-{{ categoria }}" role="alert">{{ mensaje }}</div>
+    {% endfor %}
+    <div class="alert alert-info">
+        <strong>Regla:</strong> 2 días o más desde el último login <strong>y</strong> 7 días o más desde el último movimiento.
+        Se cuentan días calendario. Si falta una fecha, el registro queda para revisión.
+        Este panel muestra recomendaciones según el Excel; no aplica la pasivación.
+    </div>
+    {% if reporte %}
+    <p class="text-muted small">Última sincronización del Excel: {{ reporte.fecha_sincronizacion }} (UTC). Las fechas de actividad provienen de ese reporte.</p>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body"><div class="text-muted">RUN evaluados</div><strong class="fs-3">{{ resumen.total }}</strong></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card h-100 border-warning"><div class="card-body"><div>Puede pasivarse</div><strong class="fs-3">{{ resumen['Puede pasivarse'] }}</strong></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card h-100 border-success"><div class="card-body"><div>No pasivar</div><strong class="fs-3">{{ resumen['No pasivar'] }}</strong></div></div></div>
+        <div class="col-6 col-lg-3"><div class="card h-100 border-secondary"><div class="card-body"><div>Revisar</div><strong class="fs-3">{{ resumen.Revisar }}</strong></div></div></div>
+    </div>
+    <div class="row g-3 mb-3">
+        <div class="col-md-8">
+            <label for="buscarPasivacion" class="form-label">Buscar funcionario</label>
+            <input type="search" id="buscarPasivacion" class="form-control" placeholder="RUN, nombre o establecimiento">
+        </div>
+        <div class="col-md-4">
+            <label for="filtroPasivacion" class="form-label">Recomendación</label>
+            <select id="filtroPasivacion" class="form-select">
+                <option value="">Todas</option><option>Puede pasivarse</option><option>No pasivar</option><option>Revisar</option>
+            </select>
+        </div>
+    </div>
+    <p class="text-muted small" id="contadorPasivacion" aria-live="polite">{{ resumen.total }} registros visibles</p>
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive" style="max-height: 70vh;">
+            <table class="table table-striped table-hover align-middle mb-0" id="tablaPasivacion">
+                <thead class="table-light sticky-top">
+                    <tr><th>RUN/RUT</th><th>Funcionario</th><th>Establecimiento</th><th>Estado actual</th><th>Último login</th><th>Días sin login</th><th>Último movimiento</th><th>Días sin movimiento</th><th>Recomendación</th><th>Motivo</th></tr>
+                </thead>
+                <tbody>
+                    {% for fila in filas %}
+                    <tr data-recomendacion="{{ fila.recomendacion }}">
+                        <td class="text-nowrap">{{ fila.rut }}</td><td>{{ fila.nombre }}</td><td>{{ fila.establecimiento }}</td><td>{{ fila.estado_actual }}</td>
+                        <td class="text-nowrap">{{ fila.ultimo_login }}</td>
+                        <td>{{ fila.dias_login if fila.dias_login is not none else 'Sin dato' }}</td>
+                        <td class="text-nowrap">{{ fila.ultimo_movimiento }}</td>
+                        <td>{{ fila.dias_movimiento if fila.dias_movimiento is not none else 'Sin dato' }}</td>
+                        <td><span class="badge {{ 'bg-warning text-dark' if fila.recomendacion == 'Puede pasivarse' else 'bg-success' if fila.recomendacion == 'No pasivar' else 'bg-secondary' }}">{{ fila.recomendacion }}</span></td>
+                        <td><small>{{ fila.motivo }}</small></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="10" class="text-center text-muted py-4">No hay registros disponibles para evaluar.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">Primero realiza una extracción de WebLun o sincroniza un Excel descargado para poder evaluar los registros.</div>
+    {% endif %}
+</div>
+<script>
+const buscar = document.getElementById('buscarPasivacion');
+if (buscar) {
+    const filtro = document.getElementById('filtroPasivacion');
+    const normalizar = texto => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    function filtrarPasivacion() {
+        const consulta = normalizar(buscar.value);
+        let visibles = 0;
+        document.querySelectorAll('#tablaPasivacion tr[data-recomendacion]').forEach(fila => {
+            const coincide = normalizar(fila.textContent).includes(consulta) && (!filtro.value || fila.dataset.recomendacion === filtro.value);
+            fila.hidden = !coincide;
+            if (coincide) visibles++;
+        });
+        document.getElementById('contadorPasivacion').textContent = visibles + ' registros visibles';
+    }
+    buscar.addEventListener('input', filtrarPasivacion);
+    filtro.addEventListener('change', filtrarPasivacion);
+}
+</script>
+{% endblock %}

@@ -2,162 +2,112 @@
 
 {% block content %}
 <div class="py-2">
-
-    <div class="d-flex flex-wrap justify-content-between
-                align-items-center gap-3 mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-            <h3 class="text-primary fw-bold mb-1">
-                Panel de Gestión de Solicitudes
-            </h3>
-            <span class="text-muted small">
-                Conectado como:
-                <strong>{{ admin_nombre }}</strong>
-            </span>
+            <h3 class="text-primary fw-bold mb-1">Panel de Gestión de Solicitudes</h3>
+            <span class="text-muted small">Conectado como: <strong>{{ admin_nombre }}</strong></span>
         </div>
-
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('export.exportar_excel') }}"
-               class="btn btn-success">
-                📥 Extraer datos de Weblun
-            </a>
-
-            <a href="{{ url_for('solicitud.logout') }}"
-               class="btn btn-outline-danger">
-                Cerrar sesión
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('export.exportar_excel') }}" class="btn btn-success">📥 Extraer datos de WebLun</a>
+            <a href="{{ url_for('export.descargar_rayen') }}" class="btn btn-outline-success">Descargar Excel de activos</a>
+            <a href="{{ url_for('solicitud.logout') }}" class="btn btn-outline-danger">Cerrar sesión</a>
+            <a href="{{ url_for('solicitud.panel_pasivacion') }}"
+               class="btn btn-outline-primary">
+                Evaluar pasivación
             </a>
         </div>
     </div>
-
-    {% for categoria, mensaje in
-        get_flashed_messages(with_categories=true) %}
-        <div class="alert alert-{{ categoria }}
-                    alert-dismissible fade show"
-             role="alert">
-            {{ mensaje }}
-            <button type="button"
-                    class="btn-close"
-                    data-bs-dismiss="alert"
-                    aria-label="Cerrar">
-            </button>
-        </div>
+    {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
+    <div class="alert alert-{{ categoria }} alert-dismissible fade show" role="alert">
+        {{ mensaje }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+    </div>
     {% endfor %}
-
+    <p class="text-muted small">
+        Los datos de WebLun se guardan en cada solicitud a partir del último Excel sincronizado.
+        «No encontrado en el reporte» no confirma que la cuenta no exista en WebLun.
+        {% if reporte_weblun %}
+        Última sincronización: {{ reporte_weblun.fecha_sincronizacion }} (UTC).
+        {% else %}
+        Todavía no hay un Excel sincronizado.
+        {% endif %}
+    </p>
+    <label for="buscarSolicitud" class="form-label">Buscar solicitud</label>
+    <input type="search" id="buscarSolicitud" class="form-control mb-3" placeholder="Buscar por RUT, nombre, sistema o estado">
     <div class="card shadow-sm border-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="tablaSolicitudes">
                 <thead class="table-light">
                     <tr>
-                        <th>ID</th>
-                        <th>Tipo</th>
-                        <th>Sistema</th>
-                        <th>Nombre y RUT</th>
-                        <th>Correo</th>
-                        <th>Centros</th>
-                        <th>Estado</th>
-                        <th>Acción administrativa</th>
+                        <th>ID</th><th>Tipo</th><th>Sistema</th><th>Nombre y RUT</th>
+                        <th>Correo</th><th>Centros</th><th>Último login</th>
+                        <th>Último movimiento</th><th>Registro en WebLun</th>
+                        <th>Estado de solicitud</th><th>Acción administrativa</th>
                     </tr>
                 </thead>
 
                 <tbody>
                     {% for s in solicitudes %}
-                    <tr>
+                    <tr data-solicitud>
                         <td><strong>#{{ s.id }}</strong></td>
                         <td>{{ s.tipo_solicitud }}</td>
-
-                        <td>
-                            <span class="badge
-                                {{ 'bg-info text-dark'
-                                   if s.sistema == 'Iris'
-                                   else 'bg-primary' }}">
-                                {{ s.sistema }}
-                            </span>
-                        </td>
-
-                        <td>
-                            <div class="fw-semibold">
-                                {{ s.nombre_completo }}
-                            </div>
-                            <small class="text-muted">
-                                {{ s.rut }}
-                            </small>
-                        </td>
-
+                        <td><span class="badge {{ 'bg-info text-dark' if s.sistema == 'Iris' else 'bg-primary' }}">{{ s.sistema }}</span></td>
+                        <td><div class="fw-semibold">{{ s.nombre_completo }}</div><small class="text-muted">{{ s.rut }}</small></td>
                         <td>{{ s.correo }}</td>
                         <td><small>{{ s.centros }}</small></td>
-
+                        <td><small>{{ s.ultimo_login or 'Sin información' }}</small></td>
+                        <td><small>{{ s.ultimo_movimiento or 'Sin información' }}</small></td>
                         <td>
-                            {% if s.estado == 'Pendiente' %}
-                                <span class="badge bg-warning text-dark">
-                                    Pendiente
-                                </span>
+                            {% if s.estado_registro_weblun == 'Existe en el reporte' %}
+                                <span class="badge bg-success">Existe en el reporte</span>
+                            {% elif s.estado_registro_weblun == 'No encontrado en el reporte' %}
+                                <span class="badge bg-warning text-dark">No encontrado en el reporte</span>
                             {% else %}
-                                <span class="badge bg-success">
-                                    Gestionada
-                                </span>
-                                <div class="text-muted small mt-1">
-                                    Por: {{ s.gestionado_por_admin }}
-                                </div>
+                                <span class="badge bg-secondary">{{ s.estado_registro_weblun }}</span>
                             {% endif %}
                         </td>
-
+                        <td>
+                            {% if s.estado == 'Pendiente' %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                            {% else %}
+                                <span class="badge bg-success">Gestionada</span>
+                                <div class="text-muted small mt-1">Por: {{ s.gestionado_por_admin }}</div>
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 {% if s.estado == 'Pendiente' %}
-                                <form method="POST"
-                                      action="{{ url_for(
-                                          'solicitud.gestionar',
-                                          solicitud_id=s.id
-                                      ) }}"
-                                      class="m-0">
-                                    <input type="hidden"
-                                           name="csrf_token"
-                                           value="{{ csrf_token() }}">
-
-                                    <button type="submit"
-                                            class="btn btn-sm btn-primary">
-                                        Marcar como gestionada
-                                    </button>
+                                <form method="POST" action="{{ url_for('solicitud.gestionar', solicitud_id=s.id) }}" class="m-0">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-primary">Marcar como gestionada</button>
                                 </form>
                                 {% else %}
-                                <span class="text-muted small">
-                                    ✓ Solicitud procesada
-                                </span>
+                                    <span class="text-muted small">✓ Solicitud procesada</span>
                                 {% endif %}
-
-                                <form method="POST"
-                                      action="{{ url_for(
-                                          'solicitud.eliminar',
-                                          solicitud_id=s.id
-                                      ) }}"
-                                      class="m-0"
-                                      onsubmit="return confirm(
-                                          '¿Eliminar la solicitud #{{ s.id }}?'
-                                      );">
-                                    <input type="hidden"
-                                           name="csrf_token"
-                                           value="{{ csrf_token() }}">
-
-                                    <button type="submit"
-                                            class="btn btn-sm btn-outline-danger"
-                                            title="Eliminar solicitud">
-                                        🗑️
-                                    </button>
+                                <form method="POST" action="{{ url_for('solicitud.eliminar', solicitud_id=s.id) }}" class="m-0" onsubmit="return confirm('¿Eliminar la solicitud #{{ s.id }}?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar solicitud">🗑️</button>
                                 </form>
                             </div>
+
                         </td>
                     </tr>
                     {% else %}
-                    <tr>
-                        <td colspan="8"
-                            class="text-center py-4 text-muted">
-                            No existen solicitudes registradas.
-                        </td>
-                    </tr>
+                    <tr><td colspan="11" class="text-center py-4 text-muted">No existen solicitudes registradas.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
-
+    
 </div>
+<script>
+document.getElementById('buscarSolicitud').addEventListener('input', function () {
+    const normalizar = texto => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const busqueda = normalizar(this.value);
+    document.querySelectorAll('#tablaSolicitudes tr[data-solicitud]').forEach(fila => {
+        fila.hidden = !normalizar(fila.textContent).includes(busqueda);
+    });
+});
+</script>
 {% endblock %}

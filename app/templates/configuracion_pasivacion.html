@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white py-3"><h5 class="mb-0">Configurar reglas de pasivación</h5></div>
+            <div class="card-body p-4">
+                {% for categoria, mensaje in get_flashed_messages(with_categories=true) %}
+                <div class="alert alert-{{ categoria }}" role="alert">{{ mensaje }}</div>
+                {% endfor %}
+                <p>Define las cantidades mínimas de días. Una persona puede pasivarse cuando cumple <strong>ambas condiciones</strong>.</p>
+                <form method="POST" action="{{ url_for('solicitud.configurar_pasivacion') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="dias_sin_login" class="form-label fw-semibold">Días sin login</label>
+                            <input type="number" id="dias_sin_login" name="dias_sin_login" class="form-control" min="1" max="3650" step="1" value="{{ valores.dias_sin_login }}" required>
+                            <div class="form-text">Días desde la última conexión.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="dias_sin_movimiento" class="form-label fw-semibold">Días sin movimiento</label>
+                            <input type="number" id="dias_sin_movimiento" name="dias_sin_movimiento" class="form-control" min="1" max="3650" step="1" value="{{ valores.dias_sin_movimiento }}" required>
+                            <div class="form-text">Días desde el último movimiento.</div>
+                        </div>
+                    </div>
+                   
+                    <button type="submit" class="btn btn-primary">Guardar y evaluar</button>
+                    <a href="{{ url_for('solicitud.panel_solicitudes') }}" class="btn btn-outline-secondary">Volver al panel</a>
+                </form>
+                <p class="text-muted small mt-4 mb-0">Último cambio: {{ parametros.fecha_actualizacion }} (UTC). Administrador: {{ parametros.actualizado_por }}.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

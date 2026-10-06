@@ -13,8 +13,8 @@ def fecha_hoy_chile():
     return datetime.now(ZONA_CHILE).date()
 
 
-def evaluar_pasivacion(ultimo_login, ultimo_movimiento, hoy=None, fecha_invalida=False):
-    """Ambas condiciones: >=2 días desde login Y >=7 días desde movimiento."""
+def evaluar_pasivacion(ultimo_login, ultimo_movimiento, hoy=None, fecha_invalida=False, *, umbral_login, umbral_movimiento):
+    """Aplica ambos límites configurados, incluyendo el día del umbral."""
     hoy = hoy or fecha_hoy_chile()
     dias_login = (hoy - ultimo_login.date()).days if ultimo_login is not None else None
     dias_movimiento = (hoy - ultimo_movimiento.date()).days if ultimo_movimiento is not None else None
@@ -24,21 +24,21 @@ def evaluar_pasivacion(ultimo_login, ultimo_movimiento, hoy=None, fecha_invalida
         estado, motivo = 'Revisar', 'Hay una fecha posterior al día de evaluación.'
     elif dias_login is None or dias_movimiento is None:
         estado, motivo = 'Revisar', 'Falta último login o último movimiento; no se puede completar la regla.'
-    elif dias_login >= 2 and dias_movimiento >= 7:
-        estado, motivo = 'Puede pasivarse', 'Cumple ambas condiciones: login hace 2 días o más y movimiento hace 7 días o más.'
+    elif dias_login >= umbral_login and dias_movimiento >= umbral_movimiento:
+        estado, motivo = 'Puede pasivarse', f'Cumple ambas condiciones: login hace {umbral_login} días o más y movimiento hace {umbral_movimiento} días o más.'
     else:
         estado = 'No pasivar'
-        if dias_login < 2 and dias_movimiento < 7:
+        if dias_login < umbral_login and dias_movimiento < umbral_movimiento:
             motivo = 'Tiene login reciente y movimiento reciente.'
-        elif dias_login < 2:
-            motivo = 'El último login fue hace menos de 2 días.'
+        elif dias_login < umbral_login:
+            motivo = f'El último login fue hace menos de {umbral_login} días.'
         else:
-            motivo = 'El último movimiento fue hace menos de 7 días.'
+            motivo = f'El último movimiento fue hace menos de {umbral_movimiento} días.'
     return {'dias_login': dias_login, 'dias_movimiento': dias_movimiento,
             'recomendacion': estado, 'motivo': motivo}
 
 
-def calcular_reporte_pasivacion(ruta_excel, hoy=None):
+def calcular_reporte_pasivacion(ruta_excel, hoy=None, *, umbral_login, umbral_movimiento):
     hoy = hoy or fecha_hoy_chile()
     ruta = Path(ruta_excel)
     if not ruta.is_file():
@@ -98,7 +98,7 @@ def calcular_reporte_pasivacion(ruta_excel, hoy=None):
                 datos[clave] = fecha
     filas = []
     for datos in por_rut.values():
-        resultado = evaluar_pasivacion(datos['ultimo_login'], datos['ultimo_movimiento'], hoy, datos['fecha_invalida'])
+        resultado = evaluar_pasivacion(datos['ultimo_login'], datos['ultimo_movimiento'], hoy, datos['fecha_invalida'], umbral_login=umbral_login, umbral_movimiento=umbral_movimiento)
         estados_normalizados = {normalizar(e) for e in datos['estados']}
         # El original puede incluir cuentas que ya no están activas.
         if resultado['recomendacion'] != 'Revisar' and estado_pos is not None:
